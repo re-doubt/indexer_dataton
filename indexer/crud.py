@@ -70,9 +70,11 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
     async with engine.begin() as conn:
         mc_block_id = None
         shard_headers = []
-        in_msgs_by_hash = {}
-        out_msgs_by_hash = {}
-        msg_contents_by_hash = {}
+        # in_msgs_by_hash = {}
+        # out_msgs_by_hash = {}
+        # msg_contents_by_hash = {}
+        msgs = []
+        msg_contents = []
         for block_raw, header_raw, txs_raw in zip(blocks_raw, headers_raw, transactions_raw):
             s_block = Block.raw_block_to_dict(block_raw)
             s_block['masterchain_block_id'] = mc_block_id
@@ -96,16 +98,20 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                     in_msg = Message.raw_msg_to_dict(in_msg_raw)
                     in_msg['in_tx_id'] = res.inserted_primary_key[0]
                     in_msg['out_tx_id'] = None
-                    hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
-                    in_msgs_by_hash[hash] = in_msg
-                    msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(in_msg_raw)
+                    msgs.append(in_msg)
+                    msg_contents.append(MessageContent.raw_msg_to_content_dict(in_msg_raw))
+                    # hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
+                    # in_msgs_by_hash[hash] = in_msg
+                    # msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(in_msg_raw)
                 for out_msg_raw in tx_details_raw['out_msgs']:
                     out_msg = Message.raw_msg_to_dict(out_msg_raw)
                     out_msg['out_tx_id'] = res.inserted_primary_key[0]
                     out_msg['in_tx_id'] = None
-                    hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
-                    out_msgs_by_hash[hash] = out_msg
-                    msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(out_msg_raw)
+                    msgs.append(out_msg)
+                    msg_contents.append(MessageContent.raw_msg_to_content_dict(in_msg_raw))
+                    # hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
+                    # out_msgs_by_hash[hash] = out_msg
+                    # msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(out_msg_raw)
 
         await conn.execute(block_headers_t.insert(), shard_headers)
 
@@ -130,15 +136,15 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
         #     await conn.execute(q)
         #     out_msgs_by_hash.pop(hash)
 
-        msgs_to_insert = list(out_msgs_by_hash.values()) + list(in_msgs_by_hash.values())
-        if len(msgs_to_insert):
+        # msgs_to_insert = list(out_msgs_by_hash.values()) + list(in_msgs_by_hash.values())
+        if len(msgs):
             msg_ids = []
-            for chunk in chunks(msgs_to_insert, 1000):
+            for chunk in chunks(msgs, 1000):
                 msg_ids = (await conn.execute(message_t.insert().returning(message_t.c.msg_id).values(chunk))).all()
 
             contents = []
             for i, msg_id_tuple in enumerate(msg_ids):
-                content = msg_contents_by_hash[msgs_to_insert[i]['hash']]
+                content = msg_contents[i]# msg_contents_by_hash[msgs_to_insert[i]['hash']]
                 content['msg_id'] = msg_id_tuple[0]
                 contents.append(content)
 
