@@ -108,7 +108,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                     out_msg['out_tx_id'] = res.inserted_primary_key[0]
                     out_msg['in_tx_id'] = None
                     msgs.append(out_msg)
-                    msg_contents.append(MessageContent.raw_msg_to_content_dict(in_msg_raw))
+                    msg_contents.append(MessageContent.raw_msg_to_content_dict(out_msg_raw))
                     # hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
                     # out_msgs_by_hash[hash] = out_msg
                     # msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(out_msg_raw)
