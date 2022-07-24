@@ -1,3 +1,5 @@
+import random
+import string
 from typing import Optional
 
 from sqlalchemy import and_
@@ -94,37 +96,39 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                     in_msg = Message.raw_msg_to_dict(in_msg_raw)
                     in_msg['in_tx_id'] = res.inserted_primary_key[0]
                     in_msg['out_tx_id'] = None
-                    in_msgs_by_hash[in_msg['hash']] = in_msg
-                    msg_contents_by_hash[in_msg['hash']] = MessageContent.raw_msg_to_content_dict(in_msg_raw)
+                    hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
+                    in_msgs_by_hash[hash] = in_msg
+                    msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(in_msg_raw)
                 for out_msg_raw in tx_details_raw['out_msgs']:
                     out_msg = Message.raw_msg_to_dict(out_msg_raw)
                     out_msg['out_tx_id'] = res.inserted_primary_key[0]
                     out_msg['in_tx_id'] = None
-                    out_msgs_by_hash[out_msg['hash']] = out_msg
-                    msg_contents_by_hash[out_msg['hash']] = MessageContent.raw_msg_to_content_dict(out_msg_raw)
+                    hash = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
+                    out_msgs_by_hash[hash] = out_msg
+                    msg_contents_by_hash[hash] = MessageContent.raw_msg_to_content_dict(out_msg_raw)
 
         await conn.execute(block_headers_t.insert(), shard_headers)
 
-        for in_msg_hash, in_msg in in_msgs_by_hash.items():
-            if in_msg_hash in out_msgs_by_hash:
-                in_msg['out_tx_id'] = out_msgs_by_hash[in_msg_hash]['out_tx_id']
-                out_msgs_by_hash.pop(in_msg_hash)
+        # for in_msg_hash, in_msg in in_msgs_by_hash.items():
+        #     if in_msg_hash in out_msgs_by_hash:
+        #         in_msg['out_tx_id'] = out_msgs_by_hash[in_msg_hash]['out_tx_id']
+        #         out_msgs_by_hash.pop(in_msg_hash)
         
-        q = select(message_t.c.hash).where(message_t.c.hash.in_(in_msgs_by_hash.keys()) & message_t.c.in_tx_id.is_(None))
-        existing_in_msgs = await conn.execute(q)
-        for e_in_msg in existing_in_msgs.all():
-            hash = e_in_msg['hash']
-            q = update(message_t).where(message_t.c.hash == hash).values(in_tx_id=in_msgs_by_hash[hash]['in_tx_id'])
-            await conn.execute(q)
-            in_msgs_by_hash.pop(hash)
+        # q = select(message_t.c.hash).where(message_t.c.hash.in_(in_msgs_by_hash.keys()) & message_t.c.in_tx_id.is_(None))
+        # existing_in_msgs = await conn.execute(q)
+        # for e_in_msg in existing_in_msgs.all():
+        #     hash = e_in_msg['hash']
+        #     q = update(message_t).where(message_t.c.hash == hash).values(in_tx_id=in_msgs_by_hash[hash]['in_tx_id'])
+        #     await conn.execute(q)
+        #     in_msgs_by_hash.pop(hash)
 
-        q = select(message_t.c.hash).where(message_t.c.hash.in_(out_msgs_by_hash.keys()) & message_t.c.out_tx_id.is_(None))
-        existing_out_msgs = await conn.execute(q)
-        for e_out_msg in existing_out_msgs.all():
-            hash = e_out_msg['hash']
-            q = update(message_t).where(message_t.c.hash == hash).values(out_tx_id=out_msgs_by_hash[hash]['out_tx_id'])
-            await conn.execute(q)
-            out_msgs_by_hash.pop(hash)
+        # q = select(message_t.c.hash).where(message_t.c.hash.in_(out_msgs_by_hash.keys()) & message_t.c.out_tx_id.is_(None))
+        # existing_out_msgs = await conn.execute(q)
+        # for e_out_msg in existing_out_msgs.all():
+        #     hash = e_out_msg['hash']
+        #     q = update(message_t).where(message_t.c.hash == hash).values(out_tx_id=out_msgs_by_hash[hash]['out_tx_id'])
+        #     await conn.execute(q)
+        #     out_msgs_by_hash.pop(hash)
 
         msgs_to_insert = list(out_msgs_by_hash.values()) + list(in_msgs_by_hash.values())
         if len(msgs_to_insert):
@@ -239,12 +243,12 @@ def get_out_messages_by_transaction(session: Session, tx_lt: int, tx_hash: int, 
 
     return session.query(Message).filter(Message.out_tx_id == tx.tx_id).all()
 
-def get_messages_by_hash(session: Session, msg_hash: str, include_msg_body: bool):
-    query = session.query(Message).filter(Message.hash == msg_hash)
-    if include_msg_body:
-        query = query.options(joinedload(Message.content))
-    query = query.limit(500)
-    return query.all()
+# def get_messages_by_hash(session: Session, msg_hash: str, include_msg_body: bool):
+#     query = session.query(Message).filter(Message.hash == msg_hash)
+#     if include_msg_body:
+#         query = query.options(joinedload(Message.content))
+#     query = query.limit(500)
+#     return query.all()
 
 def get_transactions_by_hash(session: Session, tx_hash: str, include_msg_body: bool):
     query = session.query(Transaction).filter(Transaction.hash == tx_hash)
@@ -257,17 +261,17 @@ def get_transactions_by_hash(session: Session, tx_hash: str, include_msg_body: b
     query = query.limit(500)
     return query.all()
 
-def get_transactions_by_in_message_hash(session: Session, msg_hash: str, include_msg_body: bool):
-    query = session.query(Transaction).join(Transaction.in_msg).options(contains_eager(Transaction.in_msg))
-    query = query.filter(Message.hash == msg_hash)
-    if include_msg_body:
-        query = query.options(joinedload(Transaction.in_msg).joinedload(Message.content)) \
-                     .options(joinedload(Transaction.out_msgs).joinedload(Message.content))
-    else:
-        query = query.options(joinedload(Transaction.in_msg)) \
-                     .options(joinedload(Transaction.out_msgs))
-    query = query.order_by(Transaction.utime.desc()).limit(500)
-    return query.all()
+# def get_transactions_by_in_message_hash(session: Session, msg_hash: str, include_msg_body: bool):
+#     query = session.query(Transaction).join(Transaction.in_msg).options(contains_eager(Transaction.in_msg))
+#     query = query.filter(Message.hash == msg_hash)
+#     if include_msg_body:
+#         query = query.options(joinedload(Transaction.in_msg).joinedload(Message.content)) \
+#                      .options(joinedload(Transaction.out_msgs).joinedload(Message.content))
+#     else:
+#         query = query.options(joinedload(Transaction.in_msg)) \
+#                      .options(joinedload(Transaction.out_msgs))
+#     query = query.order_by(Transaction.utime.desc()).limit(500)
+#     return query.all()
 
 def get_blocks_by_unix_time(session: Session, start_utime: Optional[int], end_utime: Optional[int], workchain: Optional[int], shard: Optional[int], limit: int, offset: int, sort: str):
     query = session.query(BlockHeader).join(BlockHeader.block).options(contains_eager(BlockHeader.block))

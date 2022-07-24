@@ -245,7 +245,6 @@ class Message(Base):
     fwd_fee: int = Column(BigInteger)
     ihr_fee: int = Column(BigInteger)
     created_lt: int = Column(BigInteger)
-    hash: str = Column(String(44))
     body_hash: str = Column(String(44))
     op: int = Column(Integer)
     comment: str = Column(String)
@@ -265,11 +264,10 @@ class Message(Base):
     __table_args__ = (Index('messages_index_1', 'source'),
                       Index('messages_index_2', 'destination'),
                       Index('messages_index_3', 'created_lt'),
-                      Index('messages_index_4', 'hash'),
-                      Index('messages_index_5', 'body_hash'),
-                      Index('messages_index_6', 'source', 'destination', 'created_lt'),
-                      Index('messages_index_7', 'in_tx_id'),
-                      Index('messages_index_8', 'out_tx_id'),
+                      Index('messages_index_4', 'body_hash'),
+                      Index('messages_index_5', 'source', 'destination', 'created_lt'),
+                      Index('messages_index_6', 'in_tx_id'),
+                      Index('messages_index_7', 'out_tx_id'),
                      )
     
     @classmethod
@@ -298,7 +296,6 @@ class Message(Base):
             'fwd_fee': int(raw['fwd_fee']),
             'ihr_fee': int(raw['ihr_fee']),
             'created_lt': int(raw['created_lt']),
-            'hash': raw['hash'],
             'body_hash': raw['body_hash'],
             'op': op,
             'comment': comment,

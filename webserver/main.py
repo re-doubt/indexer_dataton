@@ -133,14 +133,14 @@ async def get_out_message_by_transaction(
     db_messages = await db.run_sync(crud.get_out_messages_by_transaction, tx_lt, tx_hash, include_msg_body)
     return [schemas.Message.message_from_orm(m, include_msg_body) for m in db_messages]
 
-@app.get('/getMessageByHash', response_model=List[schemas.Message])
-async def get_message_by_hash(
-    msg_hash: str = Query(..., description="Message hash"),
-    include_msg_body: bool = Query(False, description="Whether return full message body or not"),
-    db: Session = Depends(get_db)
-    ):
-    db_messages = await db.run_sync(crud.get_messages_by_hash, msg_hash, include_msg_body)
-    return [schemas.Message.message_from_orm(m, include_msg_body) for m in db_messages]
+# @app.get('/getMessageByHash', response_model=List[schemas.Message])
+# async def get_message_by_hash(
+#     msg_hash: str = Query(..., description="Message hash"),
+#     include_msg_body: bool = Query(False, description="Whether return full message body or not"),
+#     db: Session = Depends(get_db)
+#     ):
+#     db_messages = await db.run_sync(crud.get_messages_by_hash, msg_hash, include_msg_body)
+#     return [schemas.Message.message_from_orm(m, include_msg_body) for m in db_messages]
 
 @app.get('/getTransactionByHash', response_model=List[schemas.Transaction])
 async def get_transaction_by_hash(
@@ -151,14 +151,14 @@ async def get_transaction_by_hash(
     db_transactions = await db.run_sync(crud.get_transactions_by_hash, tx_hash, include_msg_body)
     return [schemas.Transaction.transaction_from_orm(t, include_msg_body) for t in db_transactions]
 
-@app.get('/getTransactionByInMessageHash', response_model=List[schemas.Transaction])
-async def get_transaction_by_in_message_hash(
-    msg_hash: str = Query(..., description="Transaction hash"),
-    include_msg_body: bool = Query(False, description="Whether return full message body or not"),
-    db: Session = Depends(get_db)
-    ):
-    db_transactions = await db.run_sync(crud.get_transactions_by_in_message_hash, msg_hash, include_msg_body)
-    return [schemas.Transaction.transaction_from_orm(t, include_msg_body) for t in db_transactions]
+# @app.get('/getTransactionByInMessageHash', response_model=List[schemas.Transaction])
+# async def get_transaction_by_in_message_hash(
+#     msg_hash: str = Query(..., description="Transaction hash"),
+#     include_msg_body: bool = Query(False, description="Whether return full message body or not"),
+#     db: Session = Depends(get_db)
+#     ):
+#     db_transactions = await db.run_sync(crud.get_transactions_by_in_message_hash, msg_hash, include_msg_body)
+#     return [schemas.Transaction.transaction_from_orm(t, include_msg_body) for t in db_transactions]
 
 @app.get('/getBlocksByUnixTime', response_model=List[schemas.Block])
 async def get_blocks_by_unix_time(
