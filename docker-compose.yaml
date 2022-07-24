@@ -100,6 +100,7 @@ services:
     restart: unless-stopped
   postgres:
     image: postgres
+    command: postgres -c 'max_connections=200'
     restart: unless-stopped
     environment: 
       POSTGRES_USER: postgres
