@@ -1,0 +1,9 @@
+version: '3.3'
+services:
+  contracts-executor:
+    build:
+      context: .
+      dockerfile: deploy/contracts-executor.Dockerfile
+    restart: unless-stopped
+    ports:
+      - 9090:9090
