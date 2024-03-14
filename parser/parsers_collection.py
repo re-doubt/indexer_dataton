@@ -627,6 +627,7 @@ TEP-62 NFT standard
 """
 class NFTTransferParser(Parser):
     def __init__(self):
+        self.MAX_ATTEMPTS = 10
         super(NFTTransferParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0x5fcc3d14)))
 
     @staticmethod
@@ -750,7 +751,11 @@ class NFTTransferParser(Parser):
             raise Exception(f"Current owner account not inited yet {transfer.current_owner}")
 
         new_owner_code_hash = await get_account_code_hash(session, transfer.new_owner)
-        if not new_owner_code_hash and transfer.new_owner != 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c':
+        if (
+            not new_owner_code_hash 
+            and transfer.new_owner != 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c' 
+            and context.parse_outbox.attempts < self.MAX_ATTEMPTS
+        ):
             raise Exception(f"New owner account not inited yet {transfer.new_owner}")
 
         if current_owner_code_hash in SALE_CONTRACTS.keys():

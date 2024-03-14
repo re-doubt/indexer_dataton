@@ -93,6 +93,7 @@ async def process_item(session: SessionMaker, eventbus: EventBus, task: ParseOut
             ctx = await get_account_context(session, task.entity_id)
         else:
             raise Exception(f"entity_type not supported: {task.entity_type}")
+        ctx.parse_outbox = task
         for parser in ALL_PARSERS:
             if parser.predicate.match(ctx):
                 generated = await parser.parse(session, ctx)
