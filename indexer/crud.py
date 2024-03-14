@@ -588,7 +588,7 @@ class MessageContext:
     source_tx: Transaction
     destination_tx: Transaction
     content: MessageContent
-    parse_outbox: ParseOutbox
+    parse_outbox: ParseOutbox = None
 
 async def get_messages_context(session: Session, msg_id: int) -> MessageContext:
     message = (await session.execute(select(Message).filter(Message.msg_id == msg_id))).first()[0]
@@ -615,7 +615,7 @@ Container for account context - account itself and its code (BOC)
 class AccountContext:
     account: AccountState
     code: Code
-    parse_outbox: ParseOutbox
+    parse_outbox: ParseOutbox = None
 
 async def get_account_context(session: Session, state_id: int) -> AccountContext:
     account = (await session.execute(select(AccountState).filter(AccountState.state_id == state_id))).first()[0]
