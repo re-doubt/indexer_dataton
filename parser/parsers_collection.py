@@ -1,6 +1,7 @@
 from indexer.database import *
 from indexer.crud import *
 import codecs
+from tonsdk.utils import Address
 import json
 import aiohttp
 import asyncio
@@ -547,7 +548,7 @@ class JettonWalletParser(ContractsExecutorParser):
             await ensure_account_known(session, jetton)
 
 class RemoteDataFetcher:
-    def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=5):
+    def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=3):
         self.ipfs_gateway = ipfs_gateway
         self.timeout = timeout
         self.max_attempts = max_attempts
@@ -573,7 +574,7 @@ class RemoteDataFetcher:
                             return await resp.text()
                     except Exception as e:
                         logger.error(f"Unable to fetch data from {url}", e)
-                        await asyncio.sleep(5)
+                        await asyncio.sleep(1)
                     retry += 1
                 return None
 
@@ -609,9 +610,9 @@ class JettonMasterParser(ContractsExecutorParser):
             symbol = metadata.get('symbol', None),
             name = metadata.get('name', None),
             image = metadata.get('image', None),
-            image_data = metadata.get('image_data', None),
+            image_data = metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
             decimals = opt_apply(metadata.get('decimals', None), int),
-            metadata_url = metadata_url,
+            metadata_url = metadata_url.replace("\x00", "") if metadata_url else None,
             description = metadata.get('description', None)
         )
         logger.info(f"Adding jetton master {master}")
@@ -689,6 +690,7 @@ class NFTTransferParser(Parser):
             events = []
             nft = await get_nft(session, context.message.destination)
             if not nft:
+                await check_empty_wallets(session, context.message.destination)
                 raise Exception(f"NFT not inited yet {context.message.destination}")
             
             await self._parse_nft_history(session, context, transfer, nft)
@@ -747,10 +749,14 @@ class NFTTransferParser(Parser):
 
         current_owner_code_hash = await get_account_code_hash(session, transfer.current_owner)
         if not current_owner_code_hash:
+            await check_empty_wallets(session, transfer.current_owner)
             raise Exception(f"Current owner account not inited yet {transfer.current_owner}")
 
         new_owner_code_hash = await get_account_code_hash(session, transfer.new_owner)
+        if transfer.new_owner == 'EQAREREREREREREREREREREREREREREREREREREREREREeYT':
+            return
         if not new_owner_code_hash and transfer.new_owner != 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c':
+            await check_empty_wallets(session, transfer.new_owner)
             raise Exception(f"New owner account not inited yet {transfer.new_owner}")
 
         if current_owner_code_hash in SALE_CONTRACTS.keys():
@@ -855,9 +861,9 @@ class NFTCollectionParser(ContractsExecutorParser):
             owner=owner,
             next_item_index=int(next_item_index),
             name=metadata.get('name', None),
-            image=metadata.get('image', None),
-            image_data=metadata.get('image_data', None),
-            metadata_url=metadata_url,
+            image=metadata.get('image', None).replace("\x00", "") if 'image' in metadata else None,
+            image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
+            metadata_url=metadata_url.replace("\x00", "") if metadata_url else None,
             description=str(metadata.get('description', ''))
         )
         logger.info(f"Adding NFT collection {collection}")
@@ -875,7 +881,7 @@ class NFTCollectionParser(ContractsExecutorParser):
                     "collection": context.account.address,
                     "name": metadata.get('name', None),
                     "image": metadata.get('image', None),
-                    "image_data": metadata.get('image_data', None),
+                    "image_data": metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
                     "metadata_url": metadata_url,
                     "owner": owner
                 }
@@ -994,7 +1000,7 @@ class NFTItemParser(ContractsExecutorParser):
             name=metadata.get('name', None),
             description=metadata.get('description', None),
             image=metadata.get('image', None),
-            image_data=metadata.get('image_data', None),
+            image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
             attributes=json.dumps(metadata.get('attributes')) if 'attributes' in metadata else None,
             telemint_royalty_address=royalty_destination
         )
@@ -1041,7 +1047,7 @@ class NFTItemParser(ContractsExecutorParser):
                     "collection": collection_address,
                     "name": metadata.get('name', None),
                     "image": metadata.get('image', None),
-                    "image_data": metadata.get('image_data', None),
+                    "image_data": metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
                     "metadata_url": metadata_url,
                     "owner": owner_address
                 }
@@ -1321,6 +1327,9 @@ class DedustV2SwapExtOutParser(Parser):
         asset_out = reader.read_dedust_asset()
         amount_in = reader.read_coins()
         amount_out = reader.read_coins()
+        if amount_in == 0 or amount_out == 0:
+            logger.info(f"Skipping zero amount swap for {context.message.msg_id}")
+            return
 
         payload_reader = BitReader(cell.refs.pop(0).data.data)
         sender_addr = payload_reader.read_address()
@@ -1400,7 +1409,8 @@ class HasTextCommentParser(Parser):
             super(HasTextCommentParser.HasTextCommentPredicate, self).__init__(MessageContext)
 
         def _internal_match(self, context: MessageContext):
-            return context.message.comment is not None and len(context.message.comment.strip()) > 0
+            return False # disable due to insciptions
+            # return context.message.comment is not None and len(context.message.comment.strip()) > 0
 
     def __init__(self):
         super(HasTextCommentParser, self).__init__(HasTextCommentParser.HasTextCommentPredicate())
@@ -2419,6 +2429,81 @@ class DaoLamaExtendLoanParser(Parser):
         )
         logger.info(f"Adding DAOLama extend loan {extend}")
         await upsert_entity(session, extend)
+
+class Ton20SaleParser(Parser):
+    class Ton20TransferPredicate(ParserPredicate):
+        def __init__(self):
+            super(Ton20SaleParser.Ton20TransferPredicate, self).__init__(MessageContext)
+
+        def _internal_match(self, context: MessageContext):
+            return context.message.comment is not None and len(context.message.comment.strip()) > 0 \
+                   and context.message.comment.startswith("""data:application/json,{"p":"ton-20","op":"transfer",""")
+
+    def __init__(self):
+        super(Ton20SaleParser, self).__init__(Ton20SaleParser.Ton20TransferPredicate())
+
+    @staticmethod
+    def parser_name() -> str:
+        return "Ton20SaleParser"
+
+    async def parse(self, session: Session, context: MessageContext):
+        logger.info(f"Detected new TON-20 transfer with comment {context.message.comment}")
+        obj = json.loads(context.message.comment.replace("data:application/json,", ""))
+        assert obj['op'] == 'transfer'
+        tick = obj['tick']
+        buyer = obj['to']
+        if buyer.startswith("0:") and len(buyer) != 66:
+            while len(buyer) != 66:
+                buyer = "0:0" + buyer[2:]
+        buyer = Address(buyer).to_string(1, 1, 1)
+        tx_id = context.message.out_tx_id
+
+        buyer_msg = await get_messages_by_in_tx_id(session, tx_id)
+        if buyer_msg.source != buyer:
+            logger.warning(f"Wrong source message: {buyer_msg}. should be from {buyer}")
+            return
+        price = buyer_msg.value
+        all_msgs = await get_messages_by_out_tx_id(session, tx_id)
+        addresses = []
+        referral_address = None
+        REF_ADDR = [
+            'EQDRNv1POLlFxKAIc3mYke_z-DEGeo2TKsujcHPHEF1Xxvrp',
+            'EQBhwZHdjuchMZvuVtIXWJe6hgZVFIwEYlsyVA2h7SI5p5LT',
+            'EQDKvpLqntpqNRhn2Hw-7G2GA7WB5-5owmg2tV_HFYttXbxC'
+        ]
+        for msg in all_msgs:
+            msg = msg[0]
+            logger.info(f"Msg: {msg}")
+            logger.info(f"Msg: {context.message}")
+            if msg.msg_id == context.message.msg_id:
+                continue
+            addresses.append((msg.destination, msg.value))
+            if msg.destination in REF_ADDR:
+                referral_address = msg.destination
+                referral_amount = msg.value
+        if len(addresses) < 2:
+            logger.warning(f"Unable to get refferal address for {context.message.msg_id}")
+            return
+        addresses = sorted(addresses, key=lambda x: x[1], reverse=True)
+        (seller_address, _) = addresses[0]
+        if referral_address is None:
+            logger.warning("Unable to get ref addr")
+            return
+
+        sale = Ton20Sale(
+            msg_id=context.message.msg_id,
+            utime=context.source_tx.utime,
+            hash=context.message.hash,
+            seller=seller_address,
+            buyer=buyer,
+            tick=tick,
+            amount_ton=price,
+            amount_ton20=int(obj['amt']),
+            referral_address=referral_address,
+            referral_amount=referral_amount
+        )
+        logger.info(f"Adding ton20 sale {sale}")
+        await upsert_entity(session, sale)
 
 # Collect all declared parsers
 
