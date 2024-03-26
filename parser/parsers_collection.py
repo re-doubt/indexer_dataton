@@ -2347,8 +2347,11 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
         ])
         if context.account.code_hash not in SUPPORTED_VERSIONS:
             return
-        pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = await self._execute(context.code.code, context.account.data, 'get_loan_data',
+        res = await self._execute(context.code.code, context.account.data, 'get_loan_data',
                                     ["address", "address", "address", "int", "int", "int", "int", "int"])
+        pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status = res[0:7]
+        if len(res) > 7:
+            start_time = res[7]
 
         borrow = DaoLamaBorrowWallet(
             state_id=context.account.state_id,
