@@ -2328,7 +2328,6 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
 
     async def parse(self, session: Session, context: AccountContext):
         SUPPORTED_VERSIONS = set([
-            '4mH9geTzKYbgagfAsjQDVXcT5WNTOLbfCfBmqzKFGyM=',
             'wmkqhepwv0BlOwrTZhj+P8qkmn57vODerXcZ1zxf9M4=',
             'ERTuDwKEPbTdUcdFuJYgtx3yS0wVOh40/K7/3vz/7Ts=',
             'Qb2FKy4z/kkKaGsGwjnDY1CLy9wpMjT5Pe7Z0yCbxKw=',
@@ -2340,15 +2339,22 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
             'Kj6agwzRnqPQ9hYbwgbolnGlvKx+IbS3HjnXCnwU5SY=',
             'b/mEgx7rRJN+KSmUztQyTJW6Rim65c/mBC2ODmZ0l68=',
             'Zo2B5ONpigZRrOuxc3tWZfiSO807m90yu2zm/xZZwuc=',
-            '9XyZczIbfXQVuXBYGEGC37FpFWFHKidnEbgIMBvRq1A=',
             'bFo3o/8F6KR4Wmef/8gJTTI2WSEdM1NN+/8pqsTyKXI=',
             'eOCS14fmsv7AEZsdC4fSQMNh5z+dIzQs9/sEKciTJVg=',
             'ovp3WDNxWzYIrivcxaFyKJUtHoRZ8ngpwd6fTN1ldwU='
         ])
         if context.account.code_hash not in SUPPORTED_VERSIONS:
             return
-        pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = await self._execute(context.code.code, context.account.data, 'get_loan_data',
+        res = await self._execute(context.code.code, context.account.data, 'get_loan_data',
                                     ["address", "address", "address", "int", "int", "int", "int", "int"])
+        if len(res) == 8:
+            pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = res
+        elif len(res) == 7:
+            pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status = res
+            start_time = 0
+        else:
+            logger.warning("Unsupported arg list")
+            return
 
         borrow = DaoLamaBorrowWallet(
             state_id=context.account.state_id,
