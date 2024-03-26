@@ -2327,7 +2327,25 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
         return "DaoLamaBorrowWalletParser"
 
     async def parse(self, session: Session, context: AccountContext):
-        if context.account.code_hash != '0MkU/bYx8WDSPC0dx5g6/EwGBG2T9p/Gn/ZaHW86qF4=':
+        SUPPORTED_VERSIONS = set([
+            '4mH9geTzKYbgagfAsjQDVXcT5WNTOLbfCfBmqzKFGyM=',
+            'wmkqhepwv0BlOwrTZhj+P8qkmn57vODerXcZ1zxf9M4=',
+            'ERTuDwKEPbTdUcdFuJYgtx3yS0wVOh40/K7/3vz/7Ts=',
+            'Qb2FKy4z/kkKaGsGwjnDY1CLy9wpMjT5Pe7Z0yCbxKw=',
+            '6If2byvjK4eZiIaUUbvluX8E+eBu4us1Ytd9f4pg7KY=',
+            '0MkU/bYx8WDSPC0dx5g6/EwGBG2T9p/Gn/ZaHW86qF4=',
+            'B5i324Ujztn3aa5MKfmL1R8sBf/j13UQK5ME81QmDSo=',
+            'cqgjzJRt9uNgi0jY6QUDPlnF83mqWRv2SBexGao30g4=',
+            'gebAf+llEg+XTHssqJTk20V2SBQLy1tgzPl4dL9Q0NE=',
+            'Kj6agwzRnqPQ9hYbwgbolnGlvKx+IbS3HjnXCnwU5SY=',
+            'b/mEgx7rRJN+KSmUztQyTJW6Rim65c/mBC2ODmZ0l68=',
+            'Zo2B5ONpigZRrOuxc3tWZfiSO807m90yu2zm/xZZwuc=',
+            '9XyZczIbfXQVuXBYGEGC37FpFWFHKidnEbgIMBvRq1A=',
+            'bFo3o/8F6KR4Wmef/8gJTTI2WSEdM1NN+/8pqsTyKXI=',
+            'eOCS14fmsv7AEZsdC4fSQMNh5z+dIzQs9/sEKciTJVg=',
+            'ovp3WDNxWzYIrivcxaFyKJUtHoRZ8ngpwd6fTN1ldwU='
+        ])
+        if context.account.code_hash not in SUPPORTED_VERSIONS:
             return
         pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = await self._execute(context.code.code, context.account.data, 'get_loan_data',
                                     ["address", "address", "address", "int", "int", "int", "int", "int"])
