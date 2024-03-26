@@ -2339,7 +2339,6 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
             'Kj6agwzRnqPQ9hYbwgbolnGlvKx+IbS3HjnXCnwU5SY=',
             'b/mEgx7rRJN+KSmUztQyTJW6Rim65c/mBC2ODmZ0l68=',
             'Zo2B5ONpigZRrOuxc3tWZfiSO807m90yu2zm/xZZwuc=',
-            '9XyZczIbfXQVuXBYGEGC37FpFWFHKidnEbgIMBvRq1A=',
             'bFo3o/8F6KR4Wmef/8gJTTI2WSEdM1NN+/8pqsTyKXI=',
             'eOCS14fmsv7AEZsdC4fSQMNh5z+dIzQs9/sEKciTJVg=',
             'ovp3WDNxWzYIrivcxaFyKJUtHoRZ8ngpwd6fTN1ldwU='
