@@ -510,7 +510,9 @@ async def insert_account(account_raw, address):
             await conn.execute(insert_pg(outbox_t)
                                             .values(ParseOutbox.generate(ParseOutbox.PARSE_TYPE_ACCOUNT,
                                                                          res.first()[0],
-                                                                         int(datetime.today().timestamp())))
+                                                                         int(datetime.today().timestamp()),
+                                                                         mc_seqno=select(func.min(ParseOutbox.mc_seqno)).as_scalar()
+                                                                         ))
                                             .on_conflict_do_nothing())
 
         await conn.execute(accounts_t.update().where(accounts_t.c.address == s_state['address'])\
