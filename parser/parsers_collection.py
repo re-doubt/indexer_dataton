@@ -2346,8 +2346,16 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
         ])
         if context.account.code_hash not in SUPPORTED_VERSIONS:
             return
-        pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = await self._execute(context.code.code, context.account.data, 'get_loan_data',
+        res = await self._execute(context.code.code, context.account.data, 'get_loan_data',
                                     ["address", "address", "address", "int", "int", "int", "int", "int"])
+        if len(res) == 8:
+            pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = res
+        elif len(res) == 7:
+            pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status = res
+            start_time = 0
+        else:
+            logger.warning("Unsupported arg list")
+            return
 
         borrow = DaoLamaBorrowWallet(
             state_id=context.account.state_id,
