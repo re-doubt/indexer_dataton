@@ -2358,9 +2358,9 @@ class DaoLamaBorrowWalletParser(ContractsExecutorParser):
         res = await self._execute(context.code.code, context.account.data, 'get_loan_data',
                                     ["address", "address", "address", "int", "int", "int", "int", "int"])
         if len(res) == 8:
-            pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = res
+            pool_address, nft_item, owner, borrowed_amount, amount_to_repay, time_to_repay, status, start_time = res
         elif len(res) == 7:
-            pool_address, owner, nft_item, borrowed_amount, amount_to_repay, time_to_repay, status = res
+            pool_address, nft_item, owner , borrowed_amount, amount_to_repay, time_to_repay, status = res
             start_time = 0
         else:
             logger.warning("Unsupported arg list")
