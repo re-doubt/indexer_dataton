@@ -219,7 +219,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
 
         if settings.indexer.discover_accounts_enabled and unique_addresses:
             insert_res = await conn.execute(insert_pg(accounts_t)
-                   .values([KnownAccounts.from_address(address) for address in unique_addresses])
+                   .values([KnownAccounts.generate(address=address, mc_block_id=mc_block_id) for address in unique_addresses])
                    .on_conflict_do_nothing())
             if insert_res.rowcount > 0:
                 logger.info(f"New addresses discovered: {insert_res.rowcount}/{len(unique_addresses)}")
@@ -429,12 +429,23 @@ def get_active_accounts_count_in_period(session: Session, start_utime: int, end_
 
     return query.count()
 
-async def get_known_accounts_not_indexed(session: Session, limit: int):
-    query = await session.execute(select(KnownAccounts.address) \
-                    .filter(KnownAccounts.last_check_time == None) \
-                    .limit(limit))
+async def get_known_accounts_not_indexed(session: Session, limit: int, mc_seqno: int = None):
+    stmt = select(KnownAccounts.address)
+    if mc_seqno:
+        stmt = (
+            stmt.join(Block, Block.block_id == KnownAccounts.mc_block_id)
+            .filter(KnownAccounts.last_check_time == None)
+            .filter(Block.seqno == mc_seqno)
+        )
+    else:
+        stmt = (
+            stmt.filter(KnownAccounts.last_check_time == None)
+            .order_by(KnownAccounts.mc_block_id)
+            .limit(limit)
+        )
+    res = await session.execute(stmt)
 
-    return query.all()
+    return res.all()
 
 async def get_known_accounts_long_since_check(session: Session, min_days: int, limit: int):
     query = await session.execute(select(KnownAccounts.address) \
@@ -474,11 +485,11 @@ async def insert_account(account_raw, address):
                                             .on_conflict_do_nothing())
 
         await conn.execute(accounts_t.update().where(accounts_t.c.address == s_state['address'])\
-                           .values(last_check_time=int(datetime.today().timestamp())))
+                           .values(last_check_time=int(datetime.today().timestamp()), mc_block_id=None))
 
 async def reset_account_check_time(session: Session, sale_address: str):
     await session.execute(
-        update(KnownAccounts).where(KnownAccounts.address == sale_address).values(last_check_time=None)
+        update(KnownAccounts).where(KnownAccounts.address == sale_address).values(last_check_time=None, mc_block_id=None)
     )
 
 async def get_outbox_items(session: Session, limit: int) -> ParseOutbox:

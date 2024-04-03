@@ -122,8 +122,23 @@ async def parse_outbox():
         async with SessionMaker() as session:
             # batch mode is supported but not recommended due to batch processing occurs in one transaction
             tasks = await get_outbox_items_by_min_seqno(session)
-            if len(tasks) == 0:
+            account_tasks = [task for task in tasks if task[0].entity_type == ParseOutbox.PARSE_TYPE_ACCOUNT]
+            msg_tasks = [task for task in tasks if task[0].entity_type == ParseOutbox.PARSE_TYPE_MESSAGE]
+
+            if account_tasks:
+                tasks = account_tasks
+
+            elif msg_tasks:
+                mc_seqno = msg_tasks[0][0].mc_seqno
+                if await get_known_accounts_not_indexed(session, None, mc_seqno):
+                    logger.info(f"Can't process messages until the accounts are processed (mc_seqno={mc_seqno}), waiting")
+                    tasks = []
+                else:
+                    tasks = msg_tasks
+
+            if not tasks:
                 tasks = await get_outbox_items(session, settings.parser.batch_size)
+
             if len(tasks) == 0:
                 logger.info("Parser outbox is empty, exiting")
                 break
