@@ -219,7 +219,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
 
         if settings.indexer.discover_accounts_enabled and unique_addresses:
             insert_res = await conn.execute(insert_pg(accounts_t)
-                   .values([KnownAccounts.generate(address=address, mc_block_id=mc_block_id) for address in unique_addresses])
+                   .values([KnownAccounts.generate(address=address, mc_block_id=mc_block_id, mc_seqno=mc_seqno) for address in unique_addresses])
                    .on_conflict_do_nothing())
             if insert_res.rowcount > 0:
                 logger.info(f"New addresses discovered: {insert_res.rowcount}/{len(unique_addresses)}")
@@ -430,19 +430,11 @@ def get_active_accounts_count_in_period(session: Session, start_utime: int, end_
     return query.count()
 
 async def get_known_accounts_not_indexed(session: Session, limit: int, mc_seqno: int = None):
-    stmt = select(KnownAccounts.address)
+    stmt = select(KnownAccounts.address).filter(KnownAccounts.last_check_time == None)
     if mc_seqno:
-        stmt = (
-            stmt.join(Block, Block.block_id == KnownAccounts.mc_block_id)
-            .filter(KnownAccounts.last_check_time == None)
-            .filter(Block.seqno == mc_seqno)
-        )
+        stmt = stmt.filter(KnownAccounts.mc_seqno == mc_seqno)
     else:
-        stmt = (
-            stmt.filter(KnownAccounts.last_check_time == None)
-            .order_by(KnownAccounts.mc_block_id)
-            .limit(limit)
-        )
+        stmt = stmt.order_by(KnownAccounts.mc_seqno).limit(limit)
     res = await session.execute(stmt)
 
     return res.all()
@@ -489,7 +481,7 @@ async def insert_account(account_raw, address):
 
 async def reset_account_check_time(session: Session, sale_address: str):
     await session.execute(
-        update(KnownAccounts).where(KnownAccounts.address == sale_address).values(last_check_time=None, mc_block_id=None)
+        update(KnownAccounts).where(KnownAccounts.address == sale_address).values(last_check_time=None, mc_block_id=None, mc_seqno=None)
     )
 
 async def get_outbox_items(session: Session, limit: int) -> ParseOutbox:
