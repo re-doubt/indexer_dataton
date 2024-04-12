@@ -503,6 +503,35 @@ async def postpone_outbox_item(session: Session, outbox: ParseOutbox, seconds: i
                                   attempts=(outbox.attempts + 1) if outbox.attempts else 1,
                                   mc_seqno=None))
 
+async def add_fetch_outbox_item(session: Session, entity_type, address, metadata_url) -> None:
+    await session.execute(
+        insert_pg(FetchOutbox)
+        .values(FetchOutbox.generate(entity_type, int(datetime.today().timestamp()), address, metadata_url))
+        .on_conflict_do_nothing()
+    )
+
+async def get_fetch_outbox_items(session: Session, limit: int):
+    res = await session.execute(
+        select(FetchOutbox)
+        .filter(FetchOutbox.added_time < int(datetime.today().timestamp()))
+        .order_by(FetchOutbox.added_time.asc())
+        .limit(limit)
+    )
+    return res.all()
+
+async def remove_fetch_outbox_item(session: Session, outbox_id: int):
+    return await session.execute(delete(FetchOutbox).where(FetchOutbox.outbox_id == outbox_id))
+
+async def postpone_fetch_outbox_item(session: Session, outbox: FetchOutbox, seconds: int):
+    await session.execute(
+        update(FetchOutbox)
+        .where(FetchOutbox.outbox_id == outbox.outbox_id)
+        .values(
+            added_time=int(datetime.today().timestamp()) + seconds,
+            attempts=(outbox.attempts + 1) if outbox.attempts else 1,
+        )
+    )
+
 async def get_prev_msg_id(session: Session, msg: Message) -> int:
     if msg.out_tx_id is None:
         return None
@@ -605,6 +634,12 @@ async def get_jetton_master(session: Session, master_address: str) -> JettonMast
 
 async def get_nft(session: Session, item_address: str) -> NFTItem:
     res = (await session.execute(select(NFTItem).filter(NFTItem.address == item_address))).first()
+    if not res:
+        return None
+    return res[0]
+
+async def get_nft_collection(session: Session, collection_address) -> NFTCollection:
+    res = (await session.execute(select(NFTCollection).filter(NFTCollection.address == collection_address))).first()
     if not res:
         return None
     return res[0]

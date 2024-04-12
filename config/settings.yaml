@@ -24,6 +24,12 @@ parser:
     url: ${PARSER_EXECUTOR_URL}
   retry:
     timeout: 300
+fetcher:
+  task_time_limit: 1200
+  poll_interval: 30
+  batch_size: 50
+  retry:
+    timeout: 300
 postgres:
   host: postgres
   port: 5432

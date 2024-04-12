@@ -469,7 +469,7 @@ class ContractsExecutorParser(Parser):
     """
     Parses content according to TEP-64, returns tuple of metadata_url and metadata dict
     """
-    async def _parse_tep64content(self, content):
+    async def _parse_tep64content(self, session: Session, content, entity_type, address):
         if content is None or 'content_layout' not in content:
             logger.warning(f"No content layout extracted: {content}")
             metadata_url = None
@@ -477,25 +477,14 @@ class ContractsExecutorParser(Parser):
         else:
             if content['content_layout'] == 'off-chain':
                 metadata_url = content['content']
-                metadata_json = await self.fetcher.fetch(metadata_url)
-                try:
-                    metadata = json.loads(metadata_json)
-                except Exception as e:
-                    logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
-                    metadata = {}
-                metadata['content_layout'] = content['content_layout']
+                metadata = {}
+                await add_fetch_outbox_item(session, entity_type, address, metadata_url)
             else:
                 metadata = content['content']
                 if 'uri' in metadata:
                     logger.info(f"Semi on-chain layout detected, uri: {metadata['uri']}")
                     metadata_url = metadata['uri']
-                    metadata_json = await self.fetcher.fetch(metadata_url)
-                    try:
-                        aux_metadata = json.loads(metadata_json)
-                        for k, v in aux_metadata.items():
-                            metadata[k] = v
-                    except Exception as e:
-                        logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
+                    await add_fetch_outbox_item(session, entity_type, address, metadata_url)
                 else:
                     metadata_url = None
 
@@ -598,7 +587,7 @@ class JettonMasterParser(ContractsExecutorParser):
             # we invoke get method on all contracts so ignore errors
             return
 
-        metadata_url, metadata = await self._parse_tep64content(jetton_content)
+        metadata_url, metadata = await self._parse_tep64content(session, jetton_content, FetchOutbox.JETTON_MASTER, context.account.address)
 
         master = JettonMaster(
             state_id = context.account.state_id,
@@ -852,7 +841,7 @@ class NFTCollectionParser(ContractsExecutorParser):
             # we invoke get method on all contracts so ignore errors
             return
 
-        metadata_url, metadata = await self._parse_tep64content(collection_content)
+        metadata_url, metadata = await self._parse_tep64content(session, collection_content, FetchOutbox.NFT_COLLECTION, context.account.address)
         logger.info(f"NFT collection metadata {metadata}")
 
         collection = NFTCollection(
@@ -988,7 +977,7 @@ class NFTItemParser(ContractsExecutorParser):
                                                            address=context.account.address)
 
 
-        metadata_url, metadata = await self._parse_tep64content(individual_content)
+        metadata_url, metadata = await self._parse_tep64content(session, individual_content, FetchOutbox.NFT_ITEM, context.account.address)
 
 
         item = NFTItem(

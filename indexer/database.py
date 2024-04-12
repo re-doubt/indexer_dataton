@@ -451,6 +451,35 @@ class ParseOutbox(Base):
         }
 
 
+@dataclass(init=False)
+class FetchOutbox(Base):
+    __tablename__ = 'fetch_outbox'
+
+    JETTON_MASTER = 1
+    NFT_ITEM = 2
+    NFT_COLLECTION = 3
+
+    outbox_id: int = Column(BigInteger, primary_key=True)
+    added_time: int = Column(BigInteger)
+    entity_type = Column(BigInteger)
+    address: str = Column(String)
+    metadata_url: str = Column(String)
+    attempts: int = Column(BigInteger)
+
+    __table_args__ = (Index('fetch_outbox_index_1', 'added_time'),
+                      UniqueConstraint('address')
+                      )
+    @classmethod
+    def generate(cls, entity_type, added_time, address, metadata_url, attempts=0):
+        return {
+            'entity_type': entity_type,
+            'added_time': added_time,
+            'address': address,
+            'metadata_url': metadata_url,
+            'attempts': attempts
+        }
+
+
 """
 Models for parsed data
 """
