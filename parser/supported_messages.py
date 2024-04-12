@@ -1,8 +1,9 @@
 #!/use/bin/env python
 
-# int.from_bytes(message_cell.data.data[:32].tobytes(), 'big', signed=True)
-# self.opcode = opcode if opcode < 0x80000000 else -1 * (0x100000000 - opcode)
-SUPPORTED_OP_CODES = set([
+def op_to_signed(opcode):
+    return opcode if opcode < 0x80000000 else -1 * (0x100000000 - opcode)
+
+SUPPORTED_OP_CODES = set(map(op_to_signed, [
     0x0f8a7ea5, # Jetton transfer
     0x178d4519, # Jetton mint
     0x595f07bc, # Jetton burn
@@ -19,7 +20,7 @@ SUPPORTED_OP_CODES = set([
     0x6691fda5, # TON Raffles fairlaunch purchase
     0x256c5472, # TON Raffles fairlaunch reward
     0x00000009, # DAOLama extend loan
-])
+]))
 EVAA_ROUTER = 'EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr'
 
 """
