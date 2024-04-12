@@ -1369,73 +1369,73 @@ class DedustV2SwapExtOutParser(Parser):
         ), waitCommit=True)
 
 
-class HugeTonTransfersParser(Parser):
-    class MessageValuePredicate(ParserPredicate):
-        def __init__(self, min_value):
-            super(HugeTonTransfersParser.MessageValuePredicate, self).__init__(MessageContext)
-            self.min_value = min_value
-
-        def _internal_match(self, context: MessageContext):
-            return context.message.value > self.min_value
-
-    def __init__(self):
-        # 1000 TON
-        super(HugeTonTransfersParser, self).__init__(HugeTonTransfersParser.MessageValuePredicate(min_value=1000 * 1000000000))
-
-    @staticmethod
-    def parser_name() -> str:
-        return "HugeTonTransfersParser"
-
-    async def parse(self, session: Session, context: MessageContext):
-        logger.info(f"Detected new significant TON transfer {context.message.msg_id}")
-
-        return GeneratedEvent(event=Event(
-            event_scope="TON",
-            event_target=context.message.destination,
-            finding_type="Info",
-            event_type="Transfer",
-            severity="Medium",
-            data={
-                "amount": int(context.message.value / 1000000000),
-                "source": context.message.source,
-                "destination": context.message.destination,
-                "msg_hash": context.message.hash
-            }
-        ))
-
-class HasTextCommentParser(Parser):
-    class HasTextCommentPredicate(ParserPredicate):
-        def __init__(self):
-            super(HasTextCommentParser.HasTextCommentPredicate, self).__init__(MessageContext)
-
-        def _internal_match(self, context: MessageContext):
-            return False # disable due to insciptions
-            # return context.message.comment is not None and len(context.message.comment.strip()) > 0
-
-    def __init__(self):
-        super(HasTextCommentParser, self).__init__(HasTextCommentParser.HasTextCommentPredicate())
-
-    @staticmethod
-    def parser_name() -> str:
-        return "HasTextCommentParser"
-
-    async def parse(self, session: Session, context: MessageContext):
-        logger.info(f"Detected new TON transfer with comment {context.message.msg_id}")
-
-        return GeneratedEvent(event=Event(
-            event_scope="TON",
-            event_target=context.message.destination,
-            finding_type="Info",
-            event_type="Comment",
-            severity="Medium",
-            data={
-                "amount": context.message.value / 1000000000,
-                "source": context.message.source,
-                "destination": context.message.destination,
-                "msg_hash": context.message.hash,
-                "comment": context.message.comment
-            }
-        ))
+# class HugeTonTransfersParser(Parser):
+#     class MessageValuePredicate(ParserPredicate):
+#         def __init__(self, min_value):
+#             super(HugeTonTransfersParser.MessageValuePredicate, self).__init__(MessageContext)
+#             self.min_value = min_value
+#
+#         def _internal_match(self, context: MessageContext):
+#             return context.message.value > self.min_value
+#
+#     def __init__(self):
+#         # 1000 TON
+#         super(HugeTonTransfersParser, self).__init__(HugeTonTransfersParser.MessageValuePredicate(min_value=1000 * 1000000000))
+#
+#     @staticmethod
+#     def parser_name() -> str:
+#         return "HugeTonTransfersParser"
+#
+#     async def parse(self, session: Session, context: MessageContext):
+#         logger.info(f"Detected new significant TON transfer {context.message.msg_id}")
+#
+#         return GeneratedEvent(event=Event(
+#             event_scope="TON",
+#             event_target=context.message.destination,
+#             finding_type="Info",
+#             event_type="Transfer",
+#             severity="Medium",
+#             data={
+#                 "amount": int(context.message.value / 1000000000),
+#                 "source": context.message.source,
+#                 "destination": context.message.destination,
+#                 "msg_hash": context.message.hash
+#             }
+#         ))
+#
+# class HasTextCommentParser(Parser):
+#     class HasTextCommentPredicate(ParserPredicate):
+#         def __init__(self):
+#             super(HasTextCommentParser.HasTextCommentPredicate, self).__init__(MessageContext)
+#
+#         def _internal_match(self, context: MessageContext):
+#             return False # disable due to insciptions
+#             # return context.message.comment is not None and len(context.message.comment.strip()) > 0
+#
+#     def __init__(self):
+#         super(HasTextCommentParser, self).__init__(HasTextCommentParser.HasTextCommentPredicate())
+#
+#     @staticmethod
+#     def parser_name() -> str:
+#         return "HasTextCommentParser"
+#
+#     async def parse(self, session: Session, context: MessageContext):
+#         logger.info(f"Detected new TON transfer with comment {context.message.msg_id}")
+#
+#         return GeneratedEvent(event=Event(
+#             event_scope="TON",
+#             event_target=context.message.destination,
+#             finding_type="Info",
+#             event_type="Comment",
+#             severity="Medium",
+#             data={
+#                 "amount": context.message.value / 1000000000,
+#                 "source": context.message.source,
+#                 "destination": context.message.destination,
+#                 "msg_hash": context.message.hash,
+#                 "comment": context.message.comment
+#             }
+#         ))
 
 
 class EvaaRouterPredicate(ParserPredicate):
@@ -1726,50 +1726,50 @@ class EvaaLiquidationFailParser(Parser):
             await update_evaa_liquidation_approved(session, liquidation=existing, approved=False)
 
 ## Forwards all messages to kafka
-class MessagesToKafka(Parser):
-    class SuccessfulPredicate(ParserPredicate):
-        def __init__(self):
-            super(MessagesToKafka.SuccessfulPredicate, self).__init__(MessageContext)
-            self.enabled = settings.eventbus.messages.enabled
-
-
-        def _internal_match(self, context: MessageContext):
-            if not self.enabled or context.message.destination == '': # log message
-                return False
-            if context.destination_tx is None:
-                logger.warning(f"destination_tx is not found for message {context.message.msg_id}")
-                raise Exception(f"No destination_tx for {context.message.msg_id}")
-            return context.destination_tx.action_result_code == 0 and context.destination_tx.compute_exit_code == 0
-
-    def __init__(self):
-        super(MessagesToKafka, self).__init__(MessagesToKafka.SuccessfulPredicate())
-        self.producer = None
-        self.topic = settings.eventbus.messages.topic
-
-    @staticmethod
-    def parser_name() -> str:
-        return "MessagesToKafka"
-
-    async def parse(self, session: Session, context: MessageContext):
-        if not self.producer:
-            self.producer = AIOKafkaProducer(bootstrap_servers=settings.eventbus.kafka.broker)
-            await self.producer.start()
-        msg = {
-            'msg_id': context.message.msg_id,
-            'source': context.message.source,
-            'destination': context.message.destination,
-            'value': context.message.value,
-            'op': context.message.op,
-            'hash': context.message.hash,
-            'created_lt': context.message.created_lt,
-            'fwd_fee': context.message.fwd_fee,
-            'ihr_fee': context.message.ihr_fee,
-            'import_fee': context.message.import_fee,
-            'utime': context.destination_tx.utime,
-            'content': context.content.body
-        }
-        # logger.info(json.dumps(msg))
-        await self.producer.send_and_wait(self.topic, json.dumps(msg).encode("utf-8"))
+# class MessagesToKafka(Parser):
+#     class SuccessfulPredicate(ParserPredicate):
+#         def __init__(self):
+#             super(MessagesToKafka.SuccessfulPredicate, self).__init__(MessageContext)
+#             self.enabled = settings.eventbus.messages.enabled
+#
+#
+#         def _internal_match(self, context: MessageContext):
+#             if not self.enabled or context.message.destination == '': # log message
+#                 return False
+#             if context.destination_tx is None:
+#                 logger.warning(f"destination_tx is not found for message {context.message.msg_id}")
+#                 raise Exception(f"No destination_tx for {context.message.msg_id}")
+#             return context.destination_tx.action_result_code == 0 and context.destination_tx.compute_exit_code == 0
+#
+#     def __init__(self):
+#         super(MessagesToKafka, self).__init__(MessagesToKafka.SuccessfulPredicate())
+#         self.producer = None
+#         self.topic = settings.eventbus.messages.topic
+#
+#     @staticmethod
+#     def parser_name() -> str:
+#         return "MessagesToKafka"
+#
+#     async def parse(self, session: Session, context: MessageContext):
+#         if not self.producer:
+#             self.producer = AIOKafkaProducer(bootstrap_servers=settings.eventbus.kafka.broker)
+#             await self.producer.start()
+#         msg = {
+#             'msg_id': context.message.msg_id,
+#             'source': context.message.source,
+#             'destination': context.message.destination,
+#             'value': context.message.value,
+#             'op': context.message.op,
+#             'hash': context.message.hash,
+#             'created_lt': context.message.created_lt,
+#             'fwd_fee': context.message.fwd_fee,
+#             'ihr_fee': context.message.ihr_fee,
+#             'import_fee': context.message.import_fee,
+#             'utime': context.destination_tx.utime,
+#             'content': context.content.body
+#         }
+#         # logger.info(json.dumps(msg))
+#         await self.producer.send_and_wait(self.topic, json.dumps(msg).encode("utf-8"))
 
 
 ### Storm Trade

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 
 from indexer.database import *
+from parser.supported_messages import message_supported
 from dataclasses import asdict
 from config import settings
 from loguru import logger
@@ -179,6 +180,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
             msg_ids_to_parse = []
 
             insciptions = 0
+            no_parser = 0
             for i, msg_id_tuple in enumerate(msg_ids):
                 content = msg_contents_by_hash[msgs_to_insert[i]['hash']].copy() # copy is necessary because there might be duplicates, but msg_id differ
                 content['msg_id'] = msg_id_tuple[0]
@@ -186,58 +188,15 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 current_msg = msgs_to_insert[i]
                 if current_msg['source'] == current_msg['destination']:
                     insciptions += 1
-                    payload = current_msg['comment']
-                    prefix = "data:application/json,"
-                    def make_lower(x):
-                        if x and type(x) == str:
-                            return x.lower()
-                        return x
-
-                    if payload and payload.startswith(prefix):
-                        try:
-                            obj = json.loads(payload[len(prefix):])
-                            op = obj.get('op', None)
-                            if op:
-                                op = op.lower()
-                            if op == 'deploy':
-                                await upsert_entity(conn, TonanoDeploy(
-                                    msg_id=msg_id_tuple[0],
-                                    created_lt=current_msg['created_lt'],
-                                    utime=msg2utime[current_msg['hash']],
-                                    hash=current_msg['hash'],
-                                    owner=current_msg['source'],
-                                    tick=make_lower(obj.get('tick', None)),
-                                    max_supply=int(obj.get('max', '-1')),
-                                    mint_limit=int(obj.get('lim', '-1')),
-                                ))
-                            elif op == 'mint':
-                                if int(obj.get('amt', '-1')) >= 0:
-                                    await upsert_entity(conn, TonanoMint(
-                                        msg_id=msg_id_tuple[0],
-                                        created_lt=current_msg['created_lt'],
-                                        utime=msg2utime[current_msg['hash']],
-                                        hash=current_msg['hash'],
-                                        owner=current_msg['source'],
-                                        tick=make_lower(obj.get('tick', None)),
-                                        amount=int(obj.get('amt', '-1')),
-                                        target=0
-                                    ))
-                            elif op == 'transfer':
-                                await upsert_entity(conn, TonanoTransfer(
-                                    msg_id=msg_id_tuple[0],
-                                    created_lt=current_msg['created_lt'],
-                                    utime=msg2utime[current_msg['hash']],
-                                    hash=current_msg['hash'],
-                                    owner=current_msg['source'],
-                                    tick=make_lower(obj.get('tick', None)),
-                                    destination=obj.get('to', None),
-                                    amount=int(obj.get('amt', '-1'))
-                                ))
-                        except:
-                            logger.error(f'Failed to parse ton-20 payload for {payload}: {traceback.format_exc()}')
                 else: # tonano case
-                    msg_ids_to_parse.append(msg_id_tuple)
-            logger.info(f"Processed {insciptions} inscriptions messages")
+                    msg = msgs_to_insert[i]
+                    if message_supported(msg):
+                        msg_ids_to_parse.append(msg_id_tuple)
+                    else:
+                        # msg_ids_to_parse.append(msg_id_tuple)
+                        no_parser += 1
+            logger.info(f"Adding to parser {len(msg_ids_to_parse)} messages, skipping {no_parser} messages "
+                        f"ignored by parser, skipping {insciptions} inscriptions messages")
             for chunk in chunks(contents, 3000):
                 await conn.execute(message_content_t.insert(), chunk)
 
