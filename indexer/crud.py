@@ -216,7 +216,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 logger.info(f"{insert_res.rowcount} outbox items added")
 
 
-        if settings.indexer.discover_accounts_enabled:
+        if settings.indexer.discover_accounts_enabled and unique_addresses:
             insert_res = await conn.execute(insert_pg(accounts_t)
                    .values([KnownAccounts.from_address(address) for address in unique_addresses])
                    .on_conflict_do_nothing())
