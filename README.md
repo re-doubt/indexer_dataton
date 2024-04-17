@@ -4,6 +4,11 @@ TON Indexer stores blocks, transactions, messages in Postgres database and provi
 
 ## Building and running
 
+Before building docker images make sure you have updated submodules:
+```sh
+git submodule update --init --recursive
+```
+
 Recommended hardware: 2 CPU, 16 GB RAM, 200 GB disk, SSD recommended.
 
 Prerequisites: docker, docker-compose
