@@ -140,8 +140,8 @@ function formatOutput(result, expected) {
 }
 
 async function execute(req) {
-    let gas_limit = req.gas_limit
-    console.log("Executing %s with gas limit %s", req.method, gas_limit)
+    let gas_limit = req.gas_limit ?? 20000000
+    console.log("Executing %s with gas limit %s, data size %d", req.method, gas_limit, req.data.length)
     let contract = await SmartContract.fromCell(
         Cell.fromBoc(Buffer.from(req.code, 'base64'))[0],
         Cell.fromBoc(Buffer.from(req.data, 'base64'))[0]
