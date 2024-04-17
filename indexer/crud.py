@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as insert_pg
 from sqlalchemy import update, delete
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
-
+from tonsdk.utils import Address
 
 from indexer.database import *
 from parser.supported_messages import message_supported
@@ -105,6 +105,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
             s_header['block_id'] = block_id
             shard_headers.append(s_header)
 
+            unique_addresses = set()
 
             for tx_raw, tx_details_raw in txs_raw:
                 tx = Transaction.raw_transaction_to_dict(tx_raw, tx_details_raw)
@@ -112,6 +113,9 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                     continue
                 tx['block_id'] = block_id
                 res = await conn.execute(transaction_t.insert(), [tx])
+
+                if tx['compute_skip_reason'] != "cskip_bad_state":
+                    unique_addresses.add(Address(tx['account']).to_string(True, True, True))
 
                 if 'in_msg' in tx_details_raw:
                     in_msg_raw = tx_details_raw['in_msg']
@@ -213,12 +217,6 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
 
 
         if settings.indexer.discover_accounts_enabled:
-            unique_addresses = set()
-            for msg in msgs_to_insert:
-                if len(msg['source']) > 0:
-                    unique_addresses.add(msg['source'])
-                if len(msg['destination']) > 0:
-                    unique_addresses.add(msg['destination'])
             insert_res = await conn.execute(insert_pg(accounts_t)
                    .values([KnownAccounts.from_address(address) for address in unique_addresses])
                    .on_conflict_do_nothing())
