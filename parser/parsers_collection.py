@@ -534,6 +534,8 @@ class ContractsExecutorParser(Parser):
                 logger.info(f"[NewParser] got no results from new parser for {address}, but before was {res_old}")
             elif res_new is not None and res_old is None:
                 logger.info(f"[NewParser] got results from new parser for {address}, before was none: {res_new}")
+            if res_new:
+                return res_new
             if res_old:
                 return res_old
             if err_old:
