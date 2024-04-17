@@ -20,6 +20,8 @@ parser:
   task_time_limit: 1200
   poll_interval: 30
   batch_size: 10
+  executor_old:
+    url: ${PARSER_EXECUTOR_OLD_URL}
   executor:
     url: ${PARSER_EXECUTOR_URL}
   retry:
