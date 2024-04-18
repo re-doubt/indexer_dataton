@@ -92,6 +92,8 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
         out_msgs_by_hash = defaultdict(list)
         msg_contents_by_hash = {}
         msg2utime = {}
+        unique_addresses = set()
+
         for block_raw, header_raw, txs_raw in zip(blocks_raw, headers_raw, transactions_raw):
             s_block = Block.raw_block_to_dict(block_raw)
             s_block['masterchain_block_id'] = mc_block_id
@@ -104,8 +106,6 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
             s_header = BlockHeader.raw_header_to_dict(header_raw)
             s_header['block_id'] = block_id
             shard_headers.append(s_header)
-
-            unique_addresses = set()
 
             for tx_raw, tx_details_raw in txs_raw:
                 tx = Transaction.raw_transaction_to_dict(tx_raw, tx_details_raw)
