@@ -472,7 +472,7 @@ async def insert_account(account_raw, address):
                                             .values(ParseOutbox.generate(ParseOutbox.PARSE_TYPE_ACCOUNT,
                                                                          res.first()[0],
                                                                          int(datetime.today().timestamp()),
-                                                                         mc_seqno=select(func.min(ParseOutbox.mc_seqno)).as_scalar()
+                                                                         mc_seqno=select(KnownAccounts.mc_seqno).where(KnownAccounts.address == s_state['address']).as_scalar()
                                                                          ))
                                             .on_conflict_do_nothing())
 
