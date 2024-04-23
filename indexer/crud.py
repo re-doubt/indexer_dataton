@@ -114,7 +114,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 tx['block_id'] = block_id
                 res = await conn.execute(transaction_t.insert(), [tx])
 
-                if tx['compute_skip_reason'] != "cskip_bad_state":
+                if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state"):
                     unique_addresses.add(Address(tx['account']).to_string(True, True, True))
 
                 if 'in_msg' in tx_details_raw:
@@ -479,9 +479,9 @@ async def insert_account(account_raw, address):
         await conn.execute(accounts_t.update().where(accounts_t.c.address == s_state['address'])\
                            .values(last_check_time=int(datetime.today().timestamp()), mc_block_id=None, mc_seqno=None))
 
-async def reset_account_check_time(session: Session, sale_address: str):
+async def reset_account(session: Session, address: str):
     await session.execute(
-        update(KnownAccounts).where(KnownAccounts.address == sale_address).values(last_check_time=None, mc_block_id=None, mc_seqno=None)
+        update(KnownAccounts).where(KnownAccounts.address == address).values(last_check_time=None, mc_block_id=None, mc_seqno=None)
     )
 
 async def get_outbox_items(session: Session, limit: int) -> ParseOutbox:
@@ -541,12 +541,6 @@ async def upsert_entity(session: Session, item: any, constraint='msg_id'):
         set_=stmt.excluded
     )
     return await session.execute(stmt)
-
-
-async def ensure_account_known(session: Session, address: str):
-    await session.execute(insert_pg(KnownAccounts)
-                                    .values(KnownAccounts.from_address(address))
-                                    .on_conflict_do_nothing())
 
 
 """

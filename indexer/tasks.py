@@ -10,7 +10,7 @@ import queue
 from pathlib import Path
 
 from config import settings
-from pytonlib import TonlibClient, TonlibError
+from pytonlib import TonlibClient, TonlibError, BlockDeleted
 
 from indexer.database import *
 from indexer.crud import *
@@ -256,6 +256,9 @@ async def process_account_info(addresses):
         try:
             account_raw = await index_worker.get_account_info(address)
         except BaseException as e:
+            if isinstance(e, BlockDeleted):
+                async with SessionMaker() as session:
+                    await reset_account(session, address)
             logger.error(f"Unable to process account {address}, error: {e}, type {type(e)}")
             continue
         try:

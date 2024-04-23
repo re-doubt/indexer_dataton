@@ -542,10 +542,6 @@ class JettonWalletParser(ContractsExecutorParser):
         logger.info(f"Adding jetton wallet {wallet}")
 
         await upsert_entity(session, wallet, constraint="address")
-        if owner is not None:
-            await ensure_account_known(session, owner)
-        if jetton is not None:
-            await ensure_account_known(session, jetton)
 
 class RemoteDataFetcher:
     def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=3):
@@ -715,7 +711,7 @@ class NFTTransferParser(Parser):
 
             # Force auction sale account to update state
             if prev_owner_sale and prev_owner_sale.is_auction and prev_owner_sale.owner != new_owner:
-                await reset_account_check_time(session, prev_owner_sale.address)
+                await reset_account(session, prev_owner_sale.address)
 
             # TODO ensure we have already parsed it
             if prev_owner_sale is not None:
