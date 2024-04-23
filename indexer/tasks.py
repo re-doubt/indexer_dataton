@@ -258,7 +258,7 @@ async def process_account_info(addresses):
         except BaseException as e:
             logger.error(f"Unable to process account {address}, error: {e}, type {type(e)}")
             async with SessionMaker() as session:
-                reset_account(session, address)
+                await reset_account(session, address)
             continue
         try:
             await insert_account(account_raw, address)
