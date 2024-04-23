@@ -146,7 +146,7 @@ async def check_empty_wallets(session: Session, address):
     if state.code_hash is None and state.last_tx_hash == 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=':
         logger.warning(f"Empty state found for {address}: {state}")
         await session.execute(update(KnownAccounts).where(KnownAccounts.address == address) \
-                           .values(last_check_time=None))
+                           .values(last_check_time=None, mc_block_id=None, mc_seqno=None))
 
 
 """

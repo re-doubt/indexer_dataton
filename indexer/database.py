@@ -412,6 +412,8 @@ class KnownAccounts(Base):
 
     address: str = Column(String, primary_key=True)
     last_check_time: int = Column(BigInteger)
+    mc_block_id: int = Column(BigInteger)
+    mc_seqno: int = Column(BigInteger)
 
     __table_args__ = (Index('known_accounts_index_1', 'last_check_time'),)
 
@@ -419,7 +421,18 @@ class KnownAccounts(Base):
     def from_address(cls, address):
         return {
             'address': address,
-            'last_check_time': None
+            'last_check_time': None,
+            'mc_block_id': None,
+            'mc_seqno': None
+        }
+
+    @classmethod
+    def generate(cls, address, last_check_time=None, mc_block_id=None, mc_seqno=None):
+        return {
+            'address': address,
+            'last_check_time': last_check_time,
+            'mc_block_id': mc_block_id,
+            'mc_seqno': mc_seqno
         }
 
 

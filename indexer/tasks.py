@@ -10,7 +10,7 @@ import queue
 from pathlib import Path
 
 from config import settings
-from pytonlib import TonlibClient
+from pytonlib import TonlibClient, TonlibError
 
 from indexer.database import *
 from indexer.crud import *
@@ -200,8 +200,48 @@ class IndexWorker():
         return mc_info['last']
 
     async def get_account_info(self, address):
-        account = await self.client.raw_get_account_state(address)
+        async with SessionMaker() as session:
+            try:
+                res = await session.execute(
+                    select(Block).join(KnownAccounts, Block.block_id == KnownAccounts.mc_block_id)
+                    .filter(KnownAccounts.address == address)
+                )
+                mc_block = res.first()[0]
+                mc_block.block_id = None
+                mc_block = asdict(mc_block)
+            except:
+                mc_block = None
+
+        if mc_block:
+            account = await self.get_account_info_for_block(address, mc_block)
+        else:
+            account = await self.client.raw_get_account_state(address)
         return account
+
+    async def get_account_info_for_block(self, address, mc_block):
+        request = {
+            '@type': 'withBlock',
+            'id': mc_block,
+            'function': {
+                '@type': 'raw.getAccountState',
+                'account_address': {
+                    'account_address': address
+                }
+            }
+        }
+
+        try:
+            acc_state = await self.client.tonlib_wrapper.execute(request, timeout=self.client.tonlib_timeout)
+            acc_state['address'] = address
+
+        except TonlibError as e:
+            if e and str(e) and 'VALIDATE_ACCOUNT_STATE' in str(e):
+                logger.warning(f"Unable to get account state for {address} {mc_block}: {e} {traceback.format_exc()}")
+            else:
+                pass
+            raise e
+
+        return acc_state
 
 async def _get_block(mc_seqno_list):
     async with SessionMaker() as session:
