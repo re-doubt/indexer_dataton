@@ -271,7 +271,7 @@ class AccountsIndexer(BaseScheduler):
                         logger.info(f"{len(accounts_to_index)} accounts to re-index, current queue size: {len(self.accounts_to_process_queue)}")
                         if len(accounts_to_index) == 0:
                             logger.info(f"No accounts to re-index, sleeping")
-                            await asyncio.sleep(60)
+                            await asyncio.sleep(1)
                             continue
                 self.accounts_to_process_queue.extend(accounts_to_index)
 
