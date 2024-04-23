@@ -543,12 +543,6 @@ async def upsert_entity(session: Session, item: any, constraint='msg_id'):
     return await session.execute(stmt)
 
 
-async def ensure_account_known(session: Session, address: str):
-    await session.execute(insert_pg(KnownAccounts)
-                                    .values(KnownAccounts.from_address(address))
-                                    .on_conflict_do_nothing())
-
-
 """
 Single container for message context - message itself, source and destination transaction and content
 """

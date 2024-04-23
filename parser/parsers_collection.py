@@ -542,10 +542,6 @@ class JettonWalletParser(ContractsExecutorParser):
         logger.info(f"Adding jetton wallet {wallet}")
 
         await upsert_entity(session, wallet, constraint="address")
-        if owner is not None:
-            await ensure_account_known(session, owner)
-        if jetton is not None:
-            await ensure_account_known(session, jetton)
 
 class RemoteDataFetcher:
     def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=3):
