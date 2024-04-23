@@ -715,7 +715,7 @@ class NFTTransferParser(Parser):
 
             # Force auction sale account to update state
             if prev_owner_sale and prev_owner_sale.is_auction and prev_owner_sale.owner != new_owner:
-                await reset_account_check_time(session, prev_owner_sale.address)
+                await reset_account(session, prev_owner_sale.address)
 
             # TODO ensure we have already parsed it
             if prev_owner_sale is not None:

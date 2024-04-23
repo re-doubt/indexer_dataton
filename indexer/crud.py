@@ -479,9 +479,9 @@ async def insert_account(account_raw, address):
         await conn.execute(accounts_t.update().where(accounts_t.c.address == s_state['address'])\
                            .values(last_check_time=int(datetime.today().timestamp()), mc_block_id=None, mc_seqno=None))
 
-async def reset_account_check_time(session: Session, sale_address: str):
+async def reset_account(session: Session, address: str):
     await session.execute(
-        update(KnownAccounts).where(KnownAccounts.address == sale_address).values(last_check_time=None, mc_block_id=None, mc_seqno=None)
+        update(KnownAccounts).where(KnownAccounts.address == address).values(last_check_time=None, mc_block_id=None, mc_seqno=None)
     )
 
 async def get_outbox_items(session: Session, limit: int) -> ParseOutbox:
