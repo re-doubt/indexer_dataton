@@ -513,16 +513,17 @@ class ContractsExecutorParser(Parser):
                     res = await resp.json()
                     if res['exit_code'] != 0:
                         # logger.debug("Non-zero exit code: %s" % res)
-                        return None
-                    return res['result']
+                        return None, res
+                    return res['result'], None
             err_old, err_new = None, None
             res_old, res_new = None, None
+            res_old_raw, res_new_raw = None, None
             try:
-                res_old = await get_result(self.executor_old_url)
+                res_old, res_old_raw = await get_result(self.executor_old_url)
             except Exception as e:
                 err_old = e
             try:
-                res_new = await get_result(self.executor_url)
+                res_new, res_new_raw = await get_result(self.executor_url)
             except Exception as e:
                 err_new = e
 
@@ -531,7 +532,7 @@ class ContractsExecutorParser(Parser):
             elif res_old is not None and res_new is not None and res_old != res_new:
                 logger.info(f"[NewParser] got diff results for {address} {method}: {res_old} {res_new}")
             elif res_old is not None and res_new is None:
-                logger.info(f"[NewParser] got no results from new parser for {address}, but before was {res_old}")
+                logger.info(f"[NewParser] got no results from new parser for {address}, but before was {res_old}: {res_new_raw}")
             elif res_new is not None and res_old is None:
                 logger.info(f"[NewParser] got results from new parser for {address}, before was none: {res_new}")
             if res_new:
