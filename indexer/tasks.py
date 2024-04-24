@@ -255,10 +255,12 @@ async def process_account_info(addresses):
     for address in addresses:
         try:
             account_raw = await index_worker.get_account_info(address)
+        except BlockDeleted as e:
+            logger.error(f"Block already deleted for {address}, reseting mc_seqno")
+            async with engine.begin() as conn:
+                await reset_account(conn, address)
+            continue
         except BaseException as e:
-            if isinstance(e, BlockDeleted):
-                async with SessionMaker() as session:
-                    await reset_account(session, address)
             logger.error(f"Unable to process account {address}, error: {e}, type {type(e)}")
             continue
         try:
