@@ -20,6 +20,7 @@ SUPPORTED_OP_CODES = set(map(op_to_signed, [
     0x6691fda5, # TON Raffles fairlaunch purchase
     0x256c5472, # TON Raffles fairlaunch reward
     0x00000009, # DAOLama extend loan
+    0x5445efee, # Hipo tokens_minted
 ]))
 EVAA_ROUTER = 'EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr'
 

@@ -369,6 +369,53 @@ class JettonMintParser(Parser):
 
 
 """
+Hipo project implemented alternative op-code for mint activity, see
+https://github.com/HipoFinance/contract/blob/main/contracts/schema.tlb
+
+tokens_minted#5445efee
+    query_id:uint64
+    tokens:Coins
+    coins:Coins
+    owner:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+"""
+class HipoTokensMinted(Parser):
+    def __init__(self):
+        super(HipoTokensMinted, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0x5445efee)))
+
+    @staticmethod
+    def parser_name() -> str:
+        return "HipoTokensMinted"
+
+    async def parse(self, session: Session, context: MessageContext):
+        cell = self._parse_boc(context.content.body)
+        reader = BitReader(cell.data.data)
+        reader.read_uint(32)  # tokens_minted#5445efee
+        query_id = reader.read_uint(64)  # query_id:uint64
+        amount = reader.read_coins()  # tokens:Coins
+
+        successful = context.destination_tx.action_result_code == 0 and context.destination_tx.compute_exit_code == 0
+        mint = JettonMint(
+            msg_id = context.message.msg_id,
+            created_lt = context.message.created_lt,
+            utime = context.destination_tx.utime,
+            successful = successful,
+            originated_msg_id = await get_originated_msg_id(session, context.message),
+            query_id = str(query_id),
+            amount = amount,
+            minter = context.message.source,
+            wallet = context.message.destination,
+            from_address = None,
+            response_destination = None,
+            forward_ton_amount = None,
+            forward_payload = None,
+            sub_op = None
+        )
+        logger.info(f"Adding hipo tokens_minted event {mint}")
+        await upsert_entity(session, mint)
+
+"""
 TEP-74:
 
 burn#595f07bc query_id:uint64 amount:(VarUInteger 16)
