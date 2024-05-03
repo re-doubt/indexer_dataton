@@ -114,7 +114,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 tx['block_id'] = block_id
                 res = await conn.execute(transaction_t.insert(), [tx])
 
-                if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state"):
+                if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state", "cskip_no_gas"):
                     unique_addresses.add(Address(tx['account']).to_string(True, True, True))
 
                 if 'in_msg' in tx_details_raw:
