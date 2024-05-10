@@ -496,7 +496,6 @@ Utility class to execute get methods remotely over contracts-executor (./contrac
 class ContractsExecutorParser(Parser):
     def __init__(self, predicate=ActiveAccountsPredicate()):
         super(ContractsExecutorParser, self).__init__(predicate)
-        self.executor_old_url = settings.parser.executor_old.url
         self.executor_url = settings.parser.executor.url
 
     async def _execute(self, code, data, method, types, address=None, arguments=[]):
@@ -505,43 +504,14 @@ class ContractsExecutorParser(Parser):
         if address is not None:
             req[address] = address
         async with aiohttp.ClientSession() as session:
-
-            async def get_result(url):
-                resp = await session.post(url, json=req)
-                async with resp:
-                    assert resp.status == 200, "Error during contract executor call: %s" % resp
-                    res = await resp.json()
-                    if res['exit_code'] != 0:
-                        # logger.debug("Non-zero exit code: %s" % res)
-                        return None, res
-                    return res['result'], None
-            err_old, err_new = None, None
-            res_old, res_new = None, None
-            res_old_raw, res_new_raw = None, None
-            try:
-                res_old, res_old_raw = await get_result(self.executor_old_url)
-            except Exception as e:
-                err_old = e
-            try:
-                res_new, res_new_raw = await get_result(self.executor_url)
-            except Exception as e:
-                err_new = e
-
-            if res_old is not None and res_new is not None and res_old == res_new:
-                logger.info(f"[NewParser] got the same results for {address}")
-            elif res_old is not None and res_new is not None and res_old != res_new:
-                logger.info(f"[NewParser] got diff results for {address} {method}: {res_old} {res_new}")
-            elif res_old is not None and res_new is None:
-                logger.info(f"[NewParser] got no results from new parser for {address}, but before was {res_old}: {res_new_raw}")
-            elif res_new is not None and res_old is None:
-                logger.info(f"[NewParser] got results from new parser for {address}, before was none: {res_new}")
-            if res_new:
-                return res_new
-            if res_old:
-                return res_old
-            if err_old:
-                raise e
-            logger.warning(f"No results: {res_old} {res_new}")
+            resp = await session.post(self.executor_url, json=req)
+            async with resp:
+                assert resp.status == 200, "Error during contract executor call: %s" % resp
+                res = await resp.json()
+                if res['exit_code'] != 0:
+                    # logger.debug("Non-zero exit code: %s" % res)
+                    return None
+                return res['result']
 
     """
     Parses content according to TEP-64, returns tuple of metadata_url and metadata dict
