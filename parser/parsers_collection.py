@@ -5,6 +5,7 @@ from tonsdk.utils import Address
 import json
 import aiohttp
 import asyncio
+import random
 import logging
 import time
 from urllib.parse import urlparse
@@ -496,15 +497,17 @@ Utility class to execute get methods remotely over contracts-executor (./contrac
 class ContractsExecutorParser(Parser):
     def __init__(self, predicate=ActiveAccountsPredicate()):
         super(ContractsExecutorParser, self).__init__(predicate)
-        self.executor_url = settings.parser.executor.url
+        self.executor_urls = settings.parser.executor.url.split(",")
+        logger.info(f"Inited parser executor backend: {self.executor_urls}")
 
     async def _execute(self, code, data, method, types, address=None, arguments=[]):
+        
         req = {'code': code, 'data': data, 'method': method,
                'expected': types, 'address': address, 'arguments': arguments}
         if address is not None:
             req[address] = address
         async with aiohttp.ClientSession() as session:
-            resp = await session.post(self.executor_url, json=req)
+            resp = await session.post(random.choice(self.executor_urls), json=req)
             async with resp:
                 assert resp.status == 200, "Error during contract executor call: %s" % resp
                 res = await resp.json()
