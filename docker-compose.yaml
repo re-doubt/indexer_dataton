@@ -161,7 +161,7 @@ services:
       RABBITMQ_PORT: 5672
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      PARSER_EXECUTOR_URL: ${PARSER_EXECUTOR_URL:-http://contracts-executor:9090/execute}
+      PARSER_EXECUTOR_URL: ${PARSER_EXECUTOR_URL:-http://contracts-executor_1:9090/execute,http://contracts-executor_2:9090/execute,http://contracts-executor_3:9090/execute}
       EVENTBUS_KAFKA_BROKER: ${EVENTBUS_KAFKA_BROKER:-kafka:9092}
       EVENTBUS_KAFKA_TOPIC: ${EVENTBUS_KAFKA_TOPIC:-ton_events}
       EVENTBUS_ENABLED: ${EVENTBUS_ENABLED:-true}
@@ -170,9 +170,14 @@ services:
       - postgres_password
     depends_on:
       <<: *common-depends-on
-      contracts-executor:
+      contracts-executor_1:
         condition: service_started
-  contracts-executor:
+      contracts-executor_2:
+        condition: service_started
+      contracts-executor_3:
+        condition: service_started
+
+  contracts-executor_1:
     build:
       context: contracts-executor
     restart: unless-stopped
@@ -181,6 +186,27 @@ services:
     environment:
       LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs.txt
     logging: *logging
+
+  contracts-executor_2:
+    build:
+      context: contracts-executor
+    restart: unless-stopped
+    volumes:
+      - ./mc_libs_cache/:/opt/mc_libs_cache/
+    environment:
+      LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs_2.txt
+    logging: *logging
+
+  contracts-executor_3:
+    build:
+      context: contracts-executor
+    restart: unless-stopped
+    volumes:
+      - ./mc_libs_cache/:/opt/mc_libs_cache/
+    environment:
+      LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs_3.txt
+    logging: *logging
+
   rabbitmq:
     image: rabbitmq
     restart: unless-stopped
