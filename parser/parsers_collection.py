@@ -2,12 +2,14 @@ from indexer.database import *
 from indexer.crud import *
 import codecs
 from tonsdk.utils import Address
+from tonsdk.boc import Cell
 import json
 import aiohttp
 import asyncio
 import random
 import logging
 import time
+import base64
 from urllib.parse import urlparse
 from tvm_valuetypes import deserialize_boc
 from tvm_valuetypes.cell import CellData
@@ -108,6 +110,14 @@ class ActiveAccountsPredicate(ParserPredicate):
     def _internal_match(self, context):
         return context.code is not None
 
+class CodeHashPredicate(ParserPredicate):
+    def __init__(self, code_hash):
+        super(CodeHashPredicate, self).__init__(AccountContext)
+        self.code_hash = code_hash
+
+    def _internal_match(self, context):
+        return context.code is not None and context.account.code_hash == self.code_hash
+
 """
 Wrapper around event. Parser could generate events
 and return it in wrapped form. If event being generated
@@ -118,9 +128,16 @@ class GeneratedEvent:
     event: Event
     waitCommit: bool = False
 
+"""
+Parser has priority and unique flag. Priority gives ordering
+for parser invocation and unique flag allows to skip all other parsers
+if this parser's predicate returns true.
+"""
 class Parser:
-    def __init__(self, predicate: ParserPredicate):
+    def __init__(self, predicate: ParserPredicate, priority=0, unique=False):
         self.predicate = predicate
+        self.priority = priority
+        self.unique = unique
 
     """
     Implementation could return events for the EventBus wrapped in GeneratedEvent.
@@ -592,6 +609,74 @@ class JettonWalletParser(ContractsExecutorParser):
         logger.info(f"Adding jetton wallet {wallet}")
 
         await upsert_entity(session, wallet, constraint="address")
+
+"""
+Notcoin parser.
+This parser extract data directly from account data without executing contract get_method 
+"""
+class NotcoinJettonWalletParser(Parser):
+    def __init__(self):
+        super(NotcoinJettonWalletParser, self).__init__(
+            predicate=CodeHashPredicate('DzhYHpvUx5VyYHlohx1VlGbG0nwXS6seOFjRKV72oKw='),
+            priority=100,
+            unique=True
+        )
+
+    @staticmethod
+    def parser_name() -> str:
+        return "NotcoinJettonWalletParser"
+
+    async def parse(self, session: Session, context: AccountContext):
+        cell = self._parse_boc(context.account.data)
+        reader = BitReader(cell.data.data)
+        reader.read_uint(4)
+        balance = reader.read_coins()
+        owner = reader.read_address()
+        jetton = reader.read_address()
+
+        # TODO caching for boc parsing
+        # jetton_wallet_code = Cell.one_from_boc(base64.b64decode(context.code.code))
+        # logger.info(jetton_wallet_code)
+        # state_init = Cell()
+        # state_init.bits.write_uint(0, 2)
+        # state_init.bits.write_uint(1, 1)
+        # state_init.bits.write_uint(1, 1)
+        # state_init.refs.append(jetton_wallet_code)
+        # init_data = Cell()
+        # init_data.bits.write_uint(0, 4)
+        # init_data.bits.write_coins(0)
+        # init_data.bits.write_address(Address(owner))
+        # init_data.bits.write_address(Address(jetton))
+        #
+        # logger.info(init_data)
+        # logger.info(init_data.bytes_hash().hex())
+        #
+        #
+        #
+        # addr_data = Cell()
+        # addr_data.bits.write_uint(4, 3)
+        # addr_data.bits.write_int(0, 8)
+        # addr_data.bits.write_uint(int(init_data.bytes_hash().hex(), 16), 256)
+        #
+        # logger.info(addr_data)
+        #
+        #
+        # addr_data_slice = BitReader(self._parse_boc(base64.b64encode(init_data.to_boc(False))))
+        # real_address = addr_data_slice.read_address()
+
+        
+        wallet = JettonWallet(
+            state_id = context.account.state_id,
+            address = context.account.address,
+            owner = owner,
+            jetton_master = jetton,
+            balance = balance,
+            is_scam = False # TODO context.account.address != real_address,
+        )
+        logger.info(f"Adding notcoin jetton wallet {wallet}")
+
+        await upsert_entity(session, wallet, constraint="address")
+
 
 class RemoteDataFetcher:
     def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=3):
@@ -2560,6 +2645,6 @@ def children_iterator(klass):
         for k in children_iterator(child):
             yield k
 
-ALL_PARSERS = list(children_iterator(Parser))
+ALL_PARSERS = sorted(list(children_iterator(Parser)), key=lambda x: x.priority, reverse=True)
 
 

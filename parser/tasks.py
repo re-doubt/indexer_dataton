@@ -102,6 +102,9 @@ async def process_item(session: SessionMaker, eventbus: EventBus, task: ParseOut
                             delayedEvents.append(event.event)
                         else:
                             eventbus.push_event(event.event)
+                if parser.unique:
+                    logger.info(f"Skipping all others parser, due to unique flag in {parser}")
+                    break
     except Exception as e:
         logger.error(f'Failed to perform parsing for outbox item {task.outbox_id}: {traceback.format_exc()}')
         await postpone_outbox_item(session, task, settings.parser.retry.timeout)
@@ -132,9 +135,10 @@ async def parse_outbox():
 
             await session.commit()
             for delayedEvents in res:
-                for event in delayedEvents:
-                    logger.info(f"Sending delayed event: {event}")
-                    eventbus.push_event(event)
+                if delayedEvents:
+                    for event in delayedEvents:
+                        logger.info(f"Sending delayed event: {event}")
+                        eventbus.push_event(event)
 
 @app.task
 def parse_outbox_task(arg):
