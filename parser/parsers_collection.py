@@ -1128,12 +1128,16 @@ class NFTItemParser(ContractsExecutorParser):
             index=index,
             collection=collection_address,
             owner=owner_address,
-            name=metadata.get('name', None),
-            description=metadata.get('description', None),
-            image=metadata.get('image', None),
-            image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
-            attributes=json.dumps(metadata.get('attributes')) if 'attributes' in metadata else None,
-            telemint_royalty_address=royalty_destination
+            # TODO - exclude this fields from upsert
+            # name=metadata.get('name', None),
+            # description=metadata.get('description', None),
+            # image=metadata.get('image', None),
+            # image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
+            # attributes=json.dumps(metadata.get('attributes')) if 'attributes' in metadata else None,
+            telemint_royalty_address=royalty_destination,
+            metadata_url=metadata_url,
+            metadata_updated=True,
+            metadata_update_time=int(time.time())
         )
         # cast from list to string
         if item.description and type(item.description) == list:

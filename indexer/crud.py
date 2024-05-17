@@ -536,6 +536,7 @@ async def upsert_entity(session: Session, item: any, constraint='msg_id'):
     item = asdict(item)
     del item['id']
     stmt = insert_pg(entity_t).values([item])
+    # TODO - filter out fields to be retained from stmt.excluded
     stmt = stmt.on_conflict_do_update(
         index_elements=[constraint],
         set_=stmt.excluded
