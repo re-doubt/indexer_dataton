@@ -535,13 +535,10 @@ async def upsert_entity(session: Session, item: any, constraint='msg_id', exclud
     entity_t = meta.tables[item.__tablename__]
     item = asdict(item)
     del item['id']
-    if excluded_fields:
-        for field in excluded_fields:
-            del item[field]
     stmt = insert_pg(entity_t).values([item])
     stmt = stmt.on_conflict_do_update(
         index_elements=[constraint],
-        set_=stmt.excluded
+        set_={column.name: column for column in stmt.excluded if column.name not in excluded_fields}
     )
     return await session.execute(stmt)
 
