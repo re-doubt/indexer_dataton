@@ -177,6 +177,21 @@ services:
       contracts-executor_3:
         condition: service_started
 
+  fetcher:
+    build:
+      context: .
+      dockerfile: deploy/fetcher.Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    secrets:
+      - postgres_password
+    depends_on: *common-depends-on
+
   contracts-executor_1:
     build:
       context: contracts-executor
