@@ -530,7 +530,7 @@ async def get_originated_msg_hash(session: Session, msg: Message) -> str:
 """
 Upserts data, primary key must be equals "id" 
 """
-async def upsert_entity(session: Session, item: any, constraint='msg_id'):
+async def upsert_entity(session: Session, item: any, constraint='msg_id', excluded_fields=None):
     meta = Base.metadata
     entity_t = meta.tables[item.__tablename__]
     item = asdict(item)
@@ -538,7 +538,7 @@ async def upsert_entity(session: Session, item: any, constraint='msg_id'):
     stmt = insert_pg(entity_t).values([item])
     stmt = stmt.on_conflict_do_update(
         index_elements=[constraint],
-        set_=stmt.excluded
+        set_={column.name: column for column in stmt.excluded if column.name not in excluded_fields}
     )
     return await session.execute(stmt)
 

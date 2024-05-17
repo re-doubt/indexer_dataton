@@ -544,25 +544,26 @@ class ContractsExecutorParser(Parser):
         else:
             if content['content_layout'] == 'off-chain':
                 metadata_url = content['content']
-                metadata_json = await self.fetcher.fetch(metadata_url)
-                try:
-                    metadata = json.loads(metadata_json)
-                except Exception as e:
-                    logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
-                    metadata = {}
-                metadata['content_layout'] = content['content_layout']
+                metadata = {}
+                # metadata_json = await self.fetcher.fetch(metadata_url)
+                # try:
+                #     metadata = json.loads(metadata_json)
+                # except Exception as e:
+                #     logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
+                #     metadata = {}
+                # metadata['content_layout'] = content['content_layout']
             else:
                 metadata = content['content']
                 if 'uri' in metadata:
                     logger.info(f"Semi on-chain layout detected, uri: {metadata['uri']}")
                     metadata_url = metadata['uri']
-                    metadata_json = await self.fetcher.fetch(metadata_url)
-                    try:
-                        aux_metadata = json.loads(metadata_json)
-                        for k, v in aux_metadata.items():
-                            metadata[k] = v
-                    except Exception as e:
-                        logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
+                    # metadata_json = await self.fetcher.fetch(metadata_url)
+                    # try:
+                    #     aux_metadata = json.loads(metadata_json)
+                    #     for k, v in aux_metadata.items():
+                    #         metadata[k] = v
+                    # except Exception as e:
+                    #     logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
                 else:
                     metadata_url = None
 
@@ -744,11 +745,14 @@ class JettonMasterParser(ContractsExecutorParser):
             image_data = metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
             decimals = opt_apply(metadata.get('decimals', None), int),
             metadata_url = metadata_url.replace("\x00", "") if metadata_url else None,
-            description = metadata.get('description', None)
+            description = metadata.get('description', None),
+            metadata_updated=True if metadata_url is not None else False,
+            metadata_update_time=int(time.time()) if metadata_url is not None else None
         )
         logger.info(f"Adding jetton master {master}")
 
-        await upsert_entity(session, master, constraint="address")
+        excluded_fields = ["symbol", "name", "image", "image_data", "decimals", "description"] if metadata_url is not None else None
+        await upsert_entity(session, master, constraint="address", excluded_fields=excluded_fields)
 
 
 """
@@ -995,11 +999,14 @@ class NFTCollectionParser(ContractsExecutorParser):
             image=metadata.get('image', None).replace("\x00", "") if 'image' in metadata else None,
             image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
             metadata_url=metadata_url.replace("\x00", "") if metadata_url else None,
-            description=str(metadata.get('description', ''))
+            description=str(metadata.get('description', '')),
+            metadata_updated=True if metadata_url is not None else False,
+            metadata_update_time=int(time.time()) if metadata_url is not None else None
         )
         logger.info(f"Adding NFT collection {collection}")
 
-        res = await upsert_entity(session, collection, constraint="address")
+        excluded_fields = ["name", "image", "image_data", "description"] if metadata_url is not None else None
+        res = await upsert_entity(session, collection, constraint="address", excluded_fields=excluded_fields)
         if res.rowcount > 0:
             logger.info(f"Discovered new NFT collection {context.account.address}")
             return GeneratedEvent(event=Event(
@@ -1133,14 +1140,18 @@ class NFTItemParser(ContractsExecutorParser):
             image=metadata.get('image', None),
             image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
             attributes=json.dumps(metadata.get('attributes')) if 'attributes' in metadata else None,
-            telemint_royalty_address=royalty_destination
+            telemint_royalty_address=royalty_destination,
+            metadata_url=metadata_url,
+            metadata_updated=True if metadata_url is not None else False,
+            metadata_update_time=int(time.time()) if metadata_url is not None else None
         )
         # cast from list to string
         if item.description and type(item.description) == list:
             item.description = " ".join(item.description)
         logger.info(f"Adding NFT item {item}")
 
-        res = await upsert_entity(session, item, constraint="address")
+        excluded_fields = ["name", "description", "image", "image_data", "attributes"] if metadata_url is not None else None
+        res = await upsert_entity(session, item, constraint="address", excluded_fields=excluded_fields)
 
         history_mint = await get_nft_history_mint(session, item.address)
         if not history_mint:

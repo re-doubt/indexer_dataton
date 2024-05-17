@@ -586,6 +586,8 @@ class JettonMaster(Base):
     image_data: str = Column(String)
     decimals: int = Column(BigInteger)
     metadata_url: str = Column(String)
+    metadata_update_time: int = Column(BigInteger)
+    metadata_updated: bool = Column(Boolean)
     description: str = Column(String)
 
 
@@ -645,6 +647,9 @@ class NFTItem(Base):
     image_data: str = Column(String)
     attributes: str = Column(String)
     telemint_royalty_address: str = Column(String)
+    metadata_url: str = Column(String)
+    metadata_update_time: int = Column(BigInteger)
+    metadata_updated: bool = Column(Boolean)
 
 
     __table_args__ = (
@@ -666,6 +671,8 @@ class NFTCollection(Base):
     image: str = Column(String)
     image_data: str = Column(String)
     metadata_url: str = Column(String)
+    metadata_update_time: int = Column(BigInteger)
+    metadata_updated: bool = Column(Boolean)
     description: str = Column(String)
 
     __table_args__ = (
