@@ -45,7 +45,6 @@ async def fetch_metadata(metadata_url: str):
 
 
 async def process_nft_collection(session: SessionMaker, entity: NFTCollection):
-    logger.info(entity)
     metadata = await fetch_metadata(entity.metadata_url)
 
     if metadata:
