@@ -207,14 +207,17 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
             if msg_ids_to_parse:
                 # using min_block_time as outbox time to avoid mess with single message utime
                 min_block_time = min(map(lambda x: x['gen_utime'], shard_headers))
-                insert_res = await conn.execute(insert_pg(outbox_t)
-                                                .values([ParseOutbox.generate(entity_type=ParseOutbox.PARSE_TYPE_MESSAGE,
-                                                                            entity_id=msg_id_tuple[0],
-                                                                            added_time=min_block_time,
-                                                                            mc_seqno=mc_seqno) for msg_id_tuple in msg_ids_to_parse])
-                                                .on_conflict_do_nothing())
-                if insert_res.rowcount > 0:
-                    logger.info(f"{insert_res.rowcount} outbox items added")
+                inserted_count = 0
+                for chunk in chunks(msg_ids_to_parse, 1000):
+                    insert_res = await conn.execute(insert_pg(outbox_t)
+                                                    .values([ParseOutbox.generate(entity_type=ParseOutbox.PARSE_TYPE_MESSAGE,
+                                                                                entity_id=msg_id_tuple[0],
+                                                                                added_time=min_block_time,
+                                                                                mc_seqno=mc_seqno) for msg_id_tuple in chunk])
+                                                    .on_conflict_do_nothing())
+                    inserted_count += insert_res.rowcount
+                if inserted_count > 0:
+                    logger.info(f"{inserted_count} outbox items added")
 
 
         if settings.indexer.discover_accounts_enabled and unique_addresses:
