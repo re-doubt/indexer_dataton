@@ -679,3 +679,42 @@ async def get_nft_mint_message(session: Session, item_address: str, collection_a
     if not res:
         return None
     return res[0]
+
+async def get_nft_collection_fetch_tasks(session: Session, limit: int):
+    res = (
+        await session.execute(
+            select(NFTCollection)
+            .filter(NFTCollection.metadata_updated == True)
+            .order_by(NFTCollection.metadata_update_time)
+            .limit(limit)
+        )
+    ).all()
+    if not res:
+        return None
+    return [row[0] for row in res]
+
+async def get_nft_item_fetch_tasks(session: Session, limit: int):
+    res = (
+        await session.execute(
+            select(NFTItem)
+            .filter(NFTItem.metadata_updated == True)
+            .order_by(NFTItem.metadata_update_time)
+            .limit(limit)
+        )
+    ).all()
+    if not res:
+        return None
+    return [row[0] for row in res]
+
+async def get_jetton_master_fetch_tasks(session: Session, limit: int):
+    res = (
+        await session.execute(
+            select(JettonMaster)
+            .filter(JettonMaster.metadata_updated == True)
+            .order_by(JettonMaster.metadata_update_time)
+            .limit(limit)
+        )
+    ).all()
+    if not res:
+        return None
+    return [row[0] for row in res]
