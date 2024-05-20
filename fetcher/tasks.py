@@ -44,7 +44,7 @@ async def fetch_metadata(metadata_url: str):
     return metadata
 
 
-async def process_nft_collection(session: SessionMaker, entity: NFTCollection):
+async def process_nft_collection(entity: NFTCollection):
     try:
         metadata = await fetch_metadata(entity.metadata_url)
 
@@ -62,7 +62,7 @@ async def process_nft_collection(session: SessionMaker, entity: NFTCollection):
         logger.error(f"Failed to perform fetching for NFT collection {entity.address}: {e}")
 
 
-async def process_nft_item(session: SessionMaker, entity: NFTItem):
+async def process_nft_item(entity: NFTItem):
     try:
         metadata = await fetch_metadata(entity.metadata_url)
 
@@ -81,7 +81,7 @@ async def process_nft_item(session: SessionMaker, entity: NFTItem):
         logger.error(f"Failed to perform fetching for NFT item {entity.address}: {e}")
 
 
-async def process_jetton_master(session: SessionMaker, entity: JettonMaster):
+async def process_jetton_master(entity: JettonMaster):
     try:
         metadata = await fetch_metadata(entity.metadata_url)
 
@@ -108,17 +108,17 @@ async def fetch_all():
         async with SessionMaker() as session:
             nft_collection_tasks = await get_nft_collection_fetch_tasks(session, settings.fetcher.batch_size)
             if nft_collection_tasks:
-                tasks = [process_nft_collection(session, task) for task in nft_collection_tasks]
+                tasks = [process_nft_collection(task) for task in nft_collection_tasks]
                 await asyncio.gather(*tasks)
 
             nft_item_tasks = await get_nft_item_fetch_tasks(session, settings.fetcher.batch_size)
             if nft_item_tasks:
-                tasks = [process_nft_item(session, task) for task in nft_item_tasks]
+                tasks = [process_nft_item(task) for task in nft_item_tasks]
                 await asyncio.gather(*tasks)
 
             jetton_master_tasks = await get_jetton_master_fetch_tasks(session, settings.fetcher.batch_size)
             if jetton_master_tasks:
-                tasks = [process_jetton_master(session, task) for task in jetton_master_tasks]
+                tasks = [process_jetton_master(task) for task in jetton_master_tasks]
                 await asyncio.gather(*tasks)
 
             if not nft_collection_tasks and not nft_item_tasks and not jetton_master_tasks:
