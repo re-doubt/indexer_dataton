@@ -45,57 +45,60 @@ async def fetch_metadata(metadata_url: str):
 
 
 async def process_nft_collection(session: SessionMaker, entity: NFTCollection):
-    metadata = await fetch_metadata(entity.metadata_url)
+    try:
+        metadata = await fetch_metadata(entity.metadata_url)
 
-    if metadata:
-        entity.name = metadata.get("name")
-        entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
-        entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
-        entity.description = metadata.get("description")
-        entity.metadata_update_time = None
-        entity.metadata_updated = False
-        logger.info(f"Fetching metadata for NFT collection: {entity.address}")
+        if metadata:
+            entity.name = metadata.get("name")
+            entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
+            entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
+            entity.description = metadata.get("description")
+            entity.metadata_update_time = None
+            entity.metadata_updated = False
+            logger.info(f"Fetching metadata for NFT collection: {entity.address}")
 
-    else:
+    except Exception as e:
         entity.metadata_update_time = int(time.time())
-        logger.error(f"Failed to perform fetching for NFT collection {entity.address}")
+        logger.error(f"Failed to perform fetching for NFT collection {entity.address}: {e}")
 
 
 async def process_nft_item(session: SessionMaker, entity: NFTItem):
-    metadata = await fetch_metadata(entity.metadata_url)
+    try:
+        metadata = await fetch_metadata(entity.metadata_url)
 
-    if metadata:
-        entity.name = metadata.get("name")
-        entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
-        entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
-        entity.description = metadata.get("description")
-        entity.attributes = json.dumps(metadata.get("attributes")) if "attributes" in metadata else None
-        entity.metadata_update_time = None
-        entity.metadata_updated = False
-        logger.info(f"Fetching metadata for NFT item: {entity.address}")
+        if metadata:
+            entity.name = metadata.get("name")
+            entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
+            entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
+            entity.description = metadata.get("description")
+            entity.attributes = json.dumps(metadata.get("attributes")) if "attributes" in metadata else None
+            entity.metadata_update_time = None
+            entity.metadata_updated = False
+            logger.info(f"Fetching metadata for NFT item: {entity.address}")
 
-    else:
+    except Exception as e:
         entity.metadata_update_time = int(time.time())
-        logger.error(f"Failed to perform fetching for NFT item {entity.address}")
+        logger.error(f"Failed to perform fetching for NFT item {entity.address}: {e}")
 
 
 async def process_jetton_master(session: SessionMaker, entity: JettonMaster):
-    metadata = await fetch_metadata(entity.metadata_url)
+    try:
+        metadata = await fetch_metadata(entity.metadata_url)
 
-    if metadata:
-        entity.name = metadata.get("name")
-        entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
-        entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
-        entity.description = metadata.get("description")
-        entity.symbol = metadata.get("symbol")
-        entity.decimals = opt_apply(metadata.get("decimals"), int)
-        entity.metadata_update_time = None
-        entity.metadata_updated = False
-        logger.info(f"Fetching metadata for jetton master: {entity.address}")
+        if metadata:
+            entity.name = metadata.get("name")
+            entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
+            entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
+            entity.description = metadata.get("description")
+            entity.symbol = metadata.get("symbol")
+            entity.decimals = opt_apply(metadata.get("decimals"), int)
+            entity.metadata_update_time = None
+            entity.metadata_updated = False
+            logger.info(f"Fetching metadata for jetton master: {entity.address}")
 
-    else:
+    except Exception as e:
         entity.metadata_update_time = int(time.time())
-        logger.error(f"Failed to perform fetching for jetton master {entity.address}")
+        logger.error(f"Failed to perform fetching for jetton master {entity.address}: {e}")
 
 
 async def fetch_all():
