@@ -115,7 +115,7 @@ async def fetch_all():
 
             jetton_master_tasks = await get_jetton_master_fetch_tasks(session, settings.fetcher.batch_size)
             if jetton_master_tasks:
-                tasks = [process_jetton_master(session, task) for task in tasks]
+                tasks = [process_jetton_master(session, task) for task in jetton_master_tasks]
                 await asyncio.gather(*tasks)
 
             if not nft_collection_tasks and not nft_item_tasks and not jetton_master_tasks:
