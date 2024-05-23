@@ -57,6 +57,9 @@ async def process_nft_collection(entity: NFTCollection):
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for NFT collection: {entity.address}")
 
+        else:
+            raise Exception()
+
     except Exception as e:
         entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
         logger.error(f"Failed to perform fetching for NFT collection {entity.address}: {e}")
@@ -75,6 +78,9 @@ async def process_nft_item(entity: NFTItem):
             entity.metadata_update_time = None
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for NFT item: {entity.address}")
+
+        else:
+            raise Exception()
 
     except Exception as e:
         entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
@@ -95,6 +101,9 @@ async def process_jetton_master(entity: JettonMaster):
             entity.metadata_update_time = None
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for jetton master: {entity.address}")
+
+        else:
+            raise Exception()
 
     except Exception as e:
         entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
@@ -126,7 +135,7 @@ async def fetch_all():
                 break
 
             await session.commit()
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
 
 
 @app.task
