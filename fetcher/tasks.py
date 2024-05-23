@@ -58,7 +58,7 @@ async def process_nft_collection(entity: NFTCollection):
             logger.info(f"Fetching metadata for NFT collection: {entity.address}")
 
     except Exception as e:
-        entity.metadata_update_time = int(time.time())
+        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
         logger.error(f"Failed to perform fetching for NFT collection {entity.address}: {e}")
 
 
@@ -77,7 +77,7 @@ async def process_nft_item(entity: NFTItem):
             logger.info(f"Fetching metadata for NFT item: {entity.address}")
 
     except Exception as e:
-        entity.metadata_update_time = int(time.time())
+        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
         logger.error(f"Failed to perform fetching for NFT item {entity.address}: {e}")
 
 
@@ -97,7 +97,7 @@ async def process_jetton_master(entity: JettonMaster):
             logger.info(f"Fetching metadata for jetton master: {entity.address}")
 
     except Exception as e:
-        entity.metadata_update_time = int(time.time())
+        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
         logger.error(f"Failed to perform fetching for jetton master {entity.address}: {e}")
 
 
