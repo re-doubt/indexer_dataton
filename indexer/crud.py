@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 from collections import defaultdict
 
@@ -687,7 +688,7 @@ async def get_nft_collection_fetch_tasks(session: Session, limit: int):
     res = (
         await session.execute(
             select(NFTCollection)
-            .filter(NFTCollection.metadata_updated == True)
+            .filter(NFTCollection.metadata_updated == True, NFTCollection.metadata_update_time < int(time.time()))
             .order_by(NFTCollection.metadata_update_time)
             .limit(limit)
         )
@@ -700,7 +701,7 @@ async def get_nft_item_fetch_tasks(session: Session, limit: int):
     res = (
         await session.execute(
             select(NFTItem)
-            .filter(NFTItem.metadata_updated == True)
+            .filter(NFTItem.metadata_updated == True, NFTItem.metadata_update_time < int(time.time()))
             .order_by(NFTItem.metadata_update_time)
             .limit(limit)
         )
@@ -713,7 +714,7 @@ async def get_jetton_master_fetch_tasks(session: Session, limit: int):
     res = (
         await session.execute(
             select(JettonMaster)
-            .filter(JettonMaster.metadata_updated == True)
+            .filter(JettonMaster.metadata_updated == True, JettonMaster.metadata_update_time < int(time.time()))
             .order_by(JettonMaster.metadata_update_time)
             .limit(limit)
         )
