@@ -722,3 +722,9 @@ async def get_jetton_master_fetch_tasks(session: Session, limit: int):
     if not res:
         return None
     return [row[0] for row in res]
+
+async def get_stonfi_swap_preparsed(session: Session, tx_id: int) -> StonfiSwapPreparsed:
+    res = (await session.execute(select(StonfiSwapPreparsed).filter(StonfiSwapPreparsed.tx_id == tx_id))).first()
+    if not res:
+        return None
+    return res[0]

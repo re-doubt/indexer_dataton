@@ -728,6 +728,53 @@ class DexSwapParsed(Base):
         Index('dex_swap_parsed_index_1', 'swap_user')
     )
 
+@dataclass(init=False)
+class TempDexSwapParsed(Base):
+    __tablename__ = 'temp_dex_swap_parsed'
+
+    id: int = Column(BigInteger, primary_key=True)
+    msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
+    originated_msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
+    platform: str = Column(String)  # platform name
+    swap_utime: int = Column(BigInteger)
+    swap_user: str = Column(String)
+    swap_pool: str = Column(String)
+    swap_src_token: str = Column(String)
+    swap_dst_token: str = Column(String)
+    swap_src_amount: decimal.Decimal = Column(Numeric(scale=0))
+    swap_dst_amount: decimal.Decimal = Column(Numeric(scale=0))
+    referral_address: str = Column(String)
+
+    __table_args__ = (
+        UniqueConstraint('msg_id'),
+        Index('temp_dex_swap_parsed_index_1', 'swap_user')
+    )
+
+@dataclass(init=False)
+class StonfiSwapPreparsed(Base):
+    __tablename__ = 'stonfi_swap_preparsed'
+
+    id: int = Column(BigInteger, primary_key=True)
+    tx_id: int = Column(BigInteger)
+    originated_msg_id: int = Column(BigInteger)
+    swap_msg_id: int = Column(BigInteger)
+    swap_user: str = Column(String)
+    swap_pool: str = Column(String)
+    token_wallet: str = Column(String)
+    token_amount: decimal.Decimal = Column(Numeric(scale=0))
+    referral_address: str = Column(String)
+    payment_msg_id: int = Column(BigInteger)
+    swap_utime: int = Column(BigInteger)
+    wallet0_address: str = Column(String)
+    token0_amount: decimal.Decimal = Column(Numeric(scale=0))
+    wallet1_address: str = Column(String)
+    token1_amount: decimal.Decimal = Column(Numeric(scale=0))
+
+    __table_args__ = (
+        UniqueConstraint('tx_id'),
+    )
+
+
 """
 EVAA entities
 """
