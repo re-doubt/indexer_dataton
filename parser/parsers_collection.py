@@ -1528,7 +1528,8 @@ class StonfiSwapBaseParser(Parser):
             dst_wallet_address = swap_praparsed.wallet0_address
             dst_amount = swap_praparsed.token0_amount
         else:
-            raise Exception(f"Wallet addresses in swap message id={swap_praparsed.swap_msg_id} and payment message id={swap_praparsed.payment_msg_id} don't match")
+            logger.warning(f"Wallet addresses in swap message id={swap_praparsed.swap_msg_id} and payment message id={swap_praparsed.payment_msg_id} don't match")
+            return
 
         src_wallet = await get_wallet(session, src_wallet_address)
         if not src_wallet:
@@ -1571,7 +1572,12 @@ class StonfiSwapMsgParser(StonfiSwapBaseParser):
             raise Exception(f"Destination transaction for message {context.message.msg_id} not indexed yet")
 
         if context.message.source != "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt":
-            raise Exception(f"Swap message {context.message.msg_id} was sent by unknown router")
+            logger.warning(f"Swap message {context.message.msg_id} was sent by unknown router")
+            return
+
+        if context.destination_tx.action_result_code != 0 or context.destination_tx.compute_exit_code != 0:
+            logger.warning(f"Destination transaction for message {context.message.msg_id} was unsuccessful")
+            return
 
         cell = self._parse_boc(context.content.body)
         reader = BitReader(cell.data.data)
@@ -1631,7 +1637,11 @@ class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
             raise Exception(f"Source or destination transactions for message {context.message.msg_id} not indexed yet")
 
         if context.message.destination != "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt":
-            raise Exception(f"Payment request message {context.message.msg_id} was sent to unknown router")
+            logger.warning(f"Payment request message {context.message.msg_id} was sent to unknown router")
+
+        if context.destination_tx.action_result_code != 0 or context.destination_tx.compute_exit_code != 0:
+            logger.warning(f"Destination transaction for message {context.message.msg_id} was unsuccessful")
+            return
 
         cell = self._parse_boc(context.content.body)
         reader = BitReader(cell.data.data)
@@ -1647,8 +1657,8 @@ class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
 
         swap_preparsed = await get_stonfi_swap_preparsed(session, context.source_tx.tx_id)
         if swap_preparsed:
-            if exit_code != 3326308581:
-                logger.debug(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
+            if exit_code != 3326308581:  # User payment exit code 
+                logger.warning(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
                 return
 
             swap_preparsed.payment_msg_id = context.message.msg_id
