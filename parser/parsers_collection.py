@@ -22,6 +22,8 @@ from aiokafka import AIOKafkaProducer
 from parser.eventbus import Event
 
 
+STONFI_ROUTER = "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt"
+
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 def opt_apply(value, func):
@@ -1568,7 +1570,7 @@ class StonfiSwapMsgParser(StonfiSwapBaseParser):
     async def parse(self, session: Session, context: MessageContext):
         logger.info(f"Parsing ston.fi swap message {context.message.msg_id}")
 
-        if context.message.source != "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt":
+        if context.message.source != STONFI_ROUTER:
             logger.warning(f"Swap message {context.message.msg_id} was sent by unknown router")
             return
 
@@ -1633,7 +1635,7 @@ class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
         if not context.source_tx:
             raise Exception(f"No source transaction for message {context.message.msg_id}")
 
-        if context.message.destination != "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt":
+        if context.message.destination != STONFI_ROUTER:
             logger.warning(f"Payment request message {context.message.msg_id} was sent to unknown router")
 
         if context.destination_tx.action_result_code != 0 or context.destination_tx.compute_exit_code != 0:
