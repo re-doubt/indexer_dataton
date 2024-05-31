@@ -1559,7 +1559,7 @@ class StonfiSwapBaseParser(Parser):
 
 class StonfiSwapMsgParser(StonfiSwapBaseParser):
     def __init__(self):
-        super(StonfiSwapMsgParser, self).__init__(SourceTxRequiredPredicate(OpCodePredicate(0x25938561)))
+        super(StonfiSwapMsgParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0x25938561)))
 
     @staticmethod
     def parser_name() -> str:
@@ -1567,9 +1567,6 @@ class StonfiSwapMsgParser(StonfiSwapBaseParser):
 
     async def parse(self, session: Session, context: MessageContext):
         logger.info(f"Parsing ston.fi swap message {context.message.msg_id}")
-
-        if not context.destination_tx:
-            raise Exception(f"Destination transaction for message {context.message.msg_id} not indexed yet")
 
         if context.message.source != "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt":
             logger.warning(f"Swap message {context.message.msg_id} was sent by unknown router")
@@ -1624,7 +1621,7 @@ class StonfiSwapMsgParser(StonfiSwapBaseParser):
 
 class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
     def __init__(self):
-        super(StonfiPaymentRequestMsgParser, self).__init__(SourceTxRequiredPredicate(OpCodePredicate(0xf93bb43f)))
+        super(StonfiPaymentRequestMsgParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0xf93bb43f)))
 
     @staticmethod
     def parser_name() -> str:
@@ -1633,8 +1630,8 @@ class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
     async def parse(self, session: Session, context: MessageContext):
         logger.info(f"Parsing ston.fi payment request message {context.message.msg_id}")
 
-        if not context.source_tx or not context.destination_tx:
-            raise Exception(f"Source or destination transactions for message {context.message.msg_id} not indexed yet")
+        if not context.source_tx:
+            raise Exception(f"No source transaction for message {context.message.msg_id}")
 
         if context.message.destination != "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt":
             logger.warning(f"Payment request message {context.message.msg_id} was sent to unknown router")
