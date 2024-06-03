@@ -1513,55 +1513,9 @@ class DedustV2SwapExtOutParser(Parser):
             }
         ), waitCommit=True)
 
-
-class StonfiSwapBaseParser(Parser):
-    def __init__(self, predicate: ParserPredicate):
-        super(StonfiSwapBaseParser, self).__init__(predicate)
-
-    async def _upsert_dex_swap_parsed(self, session: Session, swap_praparsed: StonfiSwapPreparsed):
-        if swap_praparsed.token_wallet == swap_praparsed.wallet0_address:
-            src_wallet_address = swap_praparsed.wallet0_address
-            src_amount = swap_praparsed.token_amount - swap_praparsed.token0_amount
-            dst_wallet_address = swap_praparsed.wallet1_address
-            dst_amount = swap_praparsed.token1_amount
-        elif swap_praparsed.token_wallet == swap_praparsed.wallet1_address:
-            src_wallet_address = swap_praparsed.wallet1_address
-            src_amount = swap_praparsed.token_amount - swap_praparsed.token1_amount
-            dst_wallet_address = swap_praparsed.wallet0_address
-            dst_amount = swap_praparsed.token0_amount
-        else:
-            logger.warning(f"Wallet addresses in swap message id={swap_praparsed.swap_msg_id} and payment message id={swap_praparsed.payment_msg_id} don't match")
-            return
-
-        src_wallet = await get_wallet(session, src_wallet_address)
-        if not src_wallet:
-            raise Exception(f"Jetton wallet not inited yet {src_wallet_address}")
-        
-        dst_wallet = await get_wallet(session, dst_wallet_address)
-        if not dst_wallet:
-            raise Exception(f"Jetton wallet not inited yet {dst_wallet_address}")
-
-        swap = TempDexSwapParsed(
-            msg_id=swap_praparsed.swap_msg_id,
-            originated_msg_id=swap_praparsed.originated_msg_id,
-            platform="ston.fi",
-            swap_utime=swap_praparsed.swap_utime,
-            swap_user=swap_praparsed.swap_user,
-            swap_pool=swap_praparsed.swap_pool,
-            swap_src_token=src_wallet.jetton_master,
-            swap_dst_token=dst_wallet.jetton_master,
-            swap_src_amount=src_amount,
-            swap_dst_amount=dst_amount,
-            referral_address=swap_praparsed.referral_address,
-        )
-
-        logger.info(f"Adding ston.fi swap {swap}")
-        await upsert_entity(session, swap)
-
-
-class StonfiSwapMsgParser(StonfiSwapBaseParser):
+class StonfiSwapMessageParser(Parser):
     def __init__(self):
-        super(StonfiSwapMsgParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0x25938561)))
+        super(StonfiSwapMessageParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0x25938561)))
 
     @staticmethod
     def parser_name() -> str:
@@ -1593,37 +1547,22 @@ class StonfiSwapMsgParser(StonfiSwapBaseParser):
         if has_ref_address:
             referral_address = addresses_reader.read_address()
 
-        swap_preparsed = await get_stonfi_swap_preparsed(session, context.destination_tx.tx_id)
-        if swap_preparsed:
-            swap_preparsed.swap_msg_id = context.message.msg_id
-            swap_preparsed.originated_msg_id = await get_originated_msg_id(session, context.message)
-            swap_preparsed.swap_user = from_user
-            swap_preparsed.swap_pool = context.message.destination
-            swap_preparsed.token_wallet = token_wallet
-            swap_preparsed.token_amount = token_amount
-            swap_preparsed.referral_address = referral_address
-            logger.info(f"Adding swap message to ston.fi swap preparsed {swap_preparsed}")
+        swap_message = StonfiSwapMessage(
+            tx_id=context.destination_tx.tx_id,
+            msg_id=context.message.msg_id,
+            originated_msg_id=await get_originated_msg_id(session, context.message),
+            swap_user=from_user,
+            swap_pool=context.message.destination,
+            token_wallet=token_wallet,
+            token_amount=token_amount,
+            referral_address=referral_address,
+        )
+        logger.info(f"Adding ston.fi swap message: {swap_message}")
+        await upsert_entity(session, swap_message, "tx_id")
 
-            if swap_preparsed.swap_msg_id and swap_preparsed.payment_msg_id:
-                await self._upsert_dex_swap_parsed(session, swap_preparsed)
-
-        else:
-            swap_preparsed = StonfiSwapPreparsed(
-                tx_id=context.destination_tx.tx_id,
-                swap_msg_id=context.message.msg_id,
-                originated_msg_id=await get_originated_msg_id(session, context.message),
-                swap_user=from_user,
-                swap_pool=context.message.destination,
-                token_wallet=token_wallet,
-                token_amount=token_amount,
-                referral_address=referral_address,
-            )
-            logger.info(f"Adding swap message to ston.fi swap preparsed {swap_preparsed}")
-            await upsert_entity(session, swap_preparsed, "tx_id")
-
-class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
+class StonfiPaymentMessageParser(Parser):
     def __init__(self):
-        super(StonfiPaymentRequestMsgParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0xf93bb43f)))
+        super(StonfiPaymentMessageParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0xf93bb43f)))
 
     @staticmethod
     def parser_name() -> str:
@@ -1654,35 +1593,52 @@ class StonfiPaymentRequestMsgParser(StonfiSwapBaseParser):
         token1_amount = params_reader.read_coins()
         wallet1_address = params_reader.read_address()
 
-        swap_preparsed = await get_stonfi_swap_preparsed(session, context.source_tx.tx_id)
-        if swap_preparsed:
-            if exit_code != 3326308581:  # User payment exit code 
-                logger.warning(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
-                return
+        if exit_code != 3326308581:  # User payment exit code 
+            logger.warning(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
+            return
 
-            swap_preparsed.payment_msg_id = context.message.msg_id
-            swap_preparsed.swap_utime = context.source_tx.utime
-            swap_preparsed.wallet0_address = wallet0_address
-            swap_preparsed.token0_amount = token0_amount
-            swap_preparsed.wallet1_address = wallet1_address
-            swap_preparsed.token1_amount = token1_amount
-            logger.info(f"Adding payment request message to ston.fi swap preparsed {swap_preparsed}")
+        swap_message = await get_stonfi_swap_message(session, context.source_tx.tx_id)
+        if not swap_message:
+            raise Exception(f"Ston.fi swap message for payment message {context.message.msg_id} not indexed yet. Skip swap parsing")
 
-            if swap_preparsed.swap_msg_id and swap_preparsed.payment_msg_id:
-                await self._upsert_dex_swap_parsed(session, swap_preparsed)
-
+        if swap_message.token_wallet == wallet0_address:
+            src_wallet_address = wallet0_address
+            src_amount = swap_message.token_amount - token0_amount
+            dst_wallet_address = wallet1_address
+            dst_amount = token1_amount
+        elif swap_message.token_wallet == wallet1_address:
+            src_wallet_address = wallet1_address
+            src_amount = swap_message.token_amount - token1_amount
+            dst_wallet_address = wallet0_address
+            dst_amount = token0_amount
         else:
-            swap_preparsed = StonfiSwapPreparsed(
-                tx_id=context.source_tx.tx_id,
-                payment_msg_id= context.message.msg_id,
-                swap_utime = context.source_tx.utime,
-                wallet0_address=wallet0_address,
-                token0_amount=token0_amount,
-                wallet1_address=wallet1_address,
-                token1_amount=token1_amount,
-            )
-            logger.info(f"Adding payment request message to ston.fi swap preparsed {swap_preparsed}")
-            await upsert_entity(session, swap_preparsed, "tx_id")
+            logger.warning(f"Wallet addresses in swap message id={swap_message.msg_id} and payment message id={context.message.msg_id} don't match")
+            return
+
+        src_wallet = await get_wallet(session, src_wallet_address)
+        if not src_wallet:
+            raise Exception(f"Jetton wallet not inited yet {src_wallet_address}")
+        
+        dst_wallet = await get_wallet(session, dst_wallet_address)
+        if not dst_wallet:
+            raise Exception(f"Jetton wallet not inited yet {dst_wallet_address}")
+
+        swap = TempDexSwapParsed(
+            msg_id=swap_message.msg_id,
+            originated_msg_id=swap_message.originated_msg_id,
+            platform="ston.fi",
+            swap_utime=context.source_tx.utime,
+            swap_user=swap_message.swap_user,
+            swap_pool=swap_message.swap_pool,
+            swap_src_token=src_wallet.jetton_master,
+            swap_dst_token=dst_wallet.jetton_master,
+            swap_src_amount=src_amount,
+            swap_dst_amount=dst_amount,
+            referral_address=swap_message.referral_address,
+        )
+
+        logger.info(f"Adding ston.fi swap {swap}")
+        await upsert_entity(session, swap)
 
 # class HugeTonTransfersParser(Parser):
 #     class MessageValuePredicate(ParserPredicate):
