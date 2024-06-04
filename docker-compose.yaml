@@ -1,6 +1,7 @@
 version: '3.3'
 services:
   web:
+    profiles: ["backward"]
     build:
       context: .
       dockerfile: deploy/web.Dockerfile
@@ -16,6 +17,7 @@ services:
         condition: service_healthy
     command: -w=${TON_INDEXER_WEBSERVER_WORKERS_COUNT:-1} --bind=0.0.0.0:8081
   backward_indexer:
+    profiles: ["backward"]
     build:
       context: .
       dockerfile: deploy/indexer.Dockerfile
@@ -48,6 +50,7 @@ services:
       postgres:
         condition: service_healthy
   backward_scheduler:
+    profiles: ["backward"]
     build:
       context: .
       dockerfile: deploy/scheduler.Dockerfile
@@ -123,7 +126,7 @@ services:
       RABBITMQ_PORT: 5672
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      LITESERVER_INDEX: ${LITESERVER_INDEX_FORWARD:-0}
+      LITESERVER_INDEX: ${LITESERVER_INDEX_ACCOUNTS:-0}
       LITESERVER_CONFIG: ${LITESERVER_CONFIG:-/run/secrets/tonlib_config}
       CDLL_PATH: ${CDLL_PATH:-./config/libtonlibjson.so.0.5}
     secrets:
@@ -161,7 +164,7 @@ services:
       RABBITMQ_PORT: 5672
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      PARSER_EXECUTOR_URL: ${PARSER_EXECUTOR_URL:-http://contracts-executor_1:9090/execute,http://contracts-executor_2:9090/execute,http://contracts-executor_3:9090/execute}
+      PARSER_EXECUTOR_URL: ${PARSER_EXECUTOR_URL:-http://contracts-executor_1:9090/execute,http://contracts-executor_2:9090/execute,http://contracts-executor_3:9090/execute,http://contracts-executor_4:9090/execute,http://contracts-executor_5:9090/execute}
       EVENTBUS_KAFKA_BROKER: ${EVENTBUS_KAFKA_BROKER:-kafka:9092}
       EVENTBUS_KAFKA_TOPIC: ${EVENTBUS_KAFKA_TOPIC:-ton_events}
       EVENTBUS_ENABLED: ${EVENTBUS_ENABLED:-true}
@@ -175,6 +178,10 @@ services:
       contracts-executor_2:
         condition: service_started
       contracts-executor_3:
+        condition: service_started
+      contracts-executor_4:
+        condition: service_started
+      contracts-executor_5:
         condition: service_started
 
   fetcher:
@@ -221,6 +228,35 @@ services:
     environment:
       LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs_3.txt
     logging: *logging
+
+  contracts-executor_4:
+    build:
+      context: contracts-executor
+    restart: unless-stopped
+    volumes:
+      - ./mc_libs_cache/:/opt/mc_libs_cache/
+    environment:
+      LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs_4.txt
+    logging: *logging
+
+  contracts-executor_5:
+    build:
+      context: contracts-executor
+    restart: unless-stopped
+    volumes:
+      - ./mc_libs_cache/:/opt/mc_libs_cache/
+    environment:
+      LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs_5.txt
+    logging: *logging
+
+
+
+  rabbitmq2:
+    image: rabbitmq
+    restart: unless-stopped
+  redis2:
+    image: redis:latest
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq

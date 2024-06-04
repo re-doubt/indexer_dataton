@@ -58,7 +58,7 @@ async def process_item(session: SessionMaker, eventbus: EventBus, task: ParseOut
                             await upsert_entity(session, TonanoDeploy(
                                 msg_id=ctx.message.msg_id,
                                 created_lt=ctx.message.created_lt,
-                                utime=ctx.source_tx.utime if ctx.source_tx else None,
+                                utime=ctx.source_tx.utime if ctx.source_tx else ctx.destination_tx.utime if ctx.destination_tx else None,
                                 owner=ctx.message.source,
                                 tick=make_lower(obj.get('tick', None)),
                                 max_supply=int(obj.get('max', '-1')),
@@ -108,7 +108,7 @@ async def process_item(session: SessionMaker, eventbus: EventBus, task: ParseOut
     except Exception as e:
         logger.error(f'Failed to perform parsing for outbox item {task.outbox_id}: {traceback.format_exc()}')
         await postpone_outbox_item(session, task, settings.parser.retry.timeout)
-        await asyncio.sleep(1) # simple throttling
+        # await asyncio.sleep(1) # simple throttling
         successful = False
     if successful:
         await remove_outbox_item(session, task.outbox_id)
