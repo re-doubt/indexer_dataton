@@ -1640,6 +1640,23 @@ class StonfiPaymentMessageParser(Parser):
         logger.info(f"Adding ston.fi swap {swap}")
         await upsert_entity(session, swap)
 
+        return GeneratedEvent(event=Event(
+            event_scope="DEX",
+            event_target="ston.fi",
+            finding_type="Info",
+            event_type="Swap",
+            severity="Medium",
+            data={
+                "pool": swap_message.swap_pool,
+                "asset_in": src_wallet.jetton_master,
+                "asset_out": dst_wallet.jetton_master,
+                "amount_in": str(src_amount),
+                "amount_out": str(dst_amount),
+                "swap_user": swap_message.swap_user,
+                "db_ref": swap_message.msg_id
+            }
+        ), waitCommit=True)
+
 # class HugeTonTransfersParser(Parser):
 #     class MessageValuePredicate(ParserPredicate):
 #         def __init__(self, min_value):
