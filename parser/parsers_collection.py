@@ -589,6 +589,7 @@ class JettonWalletParser(ContractsExecutorParser):
 
         jetton_master = await get_jetton_master(session, jetton)
         if not jetton_master:
+            await reset_account(session, jetton)
             raise Exception(f"Jetton master not inited yet {jetton}")
 
         jetton_context = await get_account_context(session, jetton_master.state_id)
@@ -1141,7 +1142,7 @@ class NFTItemParser(ContractsExecutorParser):
             image_data=metadata.get('image_data', None).replace("\x00", "") if metadata.get('image_data', None) else None,
             attributes=json.dumps(metadata.get('attributes')) if 'attributes' in metadata else None,
             telemint_royalty_address=royalty_destination,
-            metadata_url=metadata_url,
+            metadata_url=metadata_url.replace("\x00", "") if metadata_url else None,
             metadata_updated=True if metadata_url is not None else False,
             metadata_update_time=int(time.time()) if metadata_url is not None else None
         )

@@ -1,5 +1,6 @@
 import codecs
 import asyncio
+import binascii
 from os import environ
 import decimal
 from copy import deepcopy
@@ -224,6 +225,9 @@ class Transaction(Base):
         except NotImplementedError as e:
             logger.error(f"Error parsing transaction data {raw_detail['data']}: {e}")
             return None
+        except binascii.Error as e:
+            logger.error(f"Error parsing transaction data {raw_detail['data']}: {e}")
+            return None
         except:
             logger.error(f"Error parsing transaction data {raw_detail['data']}")
             raise
@@ -394,6 +398,9 @@ class AccountState(Base):
         except NotImplementedError:
             logger.error(f"NotImplementedError for {address}")
             code_hash = codecs.decode(codecs.encode(hashlib.sha256(codecs.encode(raw['code'], 'utf8')).digest(), "base64"), 'utf-8').strip()
+        except Exception as e:
+            import traceback
+            logger.error(traceback.format_exc())
 
         return {
             'address': address,
@@ -983,6 +990,29 @@ class TonanoDeploy(Base):
     __table_args__ = (Index('tonano_deploy_1', 'owner', 'tick'),
                       Index('tonano_deploy_2', 'tick'),
                       UniqueConstraint('msg_id')
+                      )
+
+@dataclass(init=False)
+class Ton20Sale(Base):
+    __tablename__ = 'ton20_sale'
+
+    id: int = Column(BigInteger, primary_key=True)
+    msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
+    utime: int = Column(BigInteger)
+    hash: str = Column(String)
+
+    seller: str = Column(String)
+    buyer: str = Column(String)
+    tick: str = Column(String)
+    amount_ton: decimal.Decimal = Column(Numeric(scale=0))
+    amount_ton20: decimal.Decimal = Column(Numeric(scale=0))
+    referral_amount: decimal.Decimal = Column(Numeric(scale=0))
+    referral_address: str = Column(String)
+
+
+    __table_args__ = (Index('ton20_sale_1', 'tick'),
+                      UniqueConstraint('msg_id'),
+                      UniqueConstraint('hash')
                       )
 
 @dataclass(init=False)
