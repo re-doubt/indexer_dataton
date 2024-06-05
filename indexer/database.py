@@ -710,6 +710,9 @@ class NFTItemSale(Base):
 class DexSwapParsed(Base):
     __tablename__ = 'dex_swap_parsed'
 
+    SWAP_COLLECTOR = 1
+    MESSAGE_PARSER = 2
+
     id: int = Column(BigInteger, primary_key=True)
     msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
     originated_msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
@@ -722,32 +725,11 @@ class DexSwapParsed(Base):
     swap_src_amount: decimal.Decimal = Column(Numeric(scale=0))
     swap_dst_amount: decimal.Decimal = Column(Numeric(scale=0))
     referral_address: str = Column(String)
+    parser_version: int = Column(Integer)
 
     __table_args__ = (
         UniqueConstraint('msg_id'),
         Index('dex_swap_parsed_index_1', 'swap_user')
-    )
-
-@dataclass(init=False)
-class TempDexSwapParsed(Base):
-    __tablename__ = 'temp_dex_swap_parsed'
-
-    id: int = Column(BigInteger, primary_key=True)
-    msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
-    originated_msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
-    platform: str = Column(String)  # platform name
-    swap_utime: int = Column(BigInteger)
-    swap_user: str = Column(String)
-    swap_pool: str = Column(String)
-    swap_src_token: str = Column(String)
-    swap_dst_token: str = Column(String)
-    swap_src_amount: decimal.Decimal = Column(Numeric(scale=0))
-    swap_dst_amount: decimal.Decimal = Column(Numeric(scale=0))
-    referral_address: str = Column(String)
-
-    __table_args__ = (
-        UniqueConstraint('msg_id'),
-        Index('temp_dex_swap_parsed_index_1', 'swap_user')
     )
 
 @dataclass(init=False)

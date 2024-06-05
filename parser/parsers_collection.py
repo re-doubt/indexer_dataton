@@ -1623,7 +1623,7 @@ class StonfiPaymentMessageParser(Parser):
         if not dst_wallet:
             raise Exception(f"Jetton wallet not inited yet {dst_wallet_address}")
 
-        swap = TempDexSwapParsed(
+        swap = DexSwapParsed(
             msg_id=swap_message.msg_id,
             originated_msg_id=swap_message.originated_msg_id,
             platform="ston.fi",
@@ -1635,6 +1635,7 @@ class StonfiPaymentMessageParser(Parser):
             swap_src_amount=src_amount,
             swap_dst_amount=dst_amount,
             referral_address=swap_message.referral_address,
+            parser_version=DexSwapParsed.MESSAGE_PARSER,
         )
 
         logger.info(f"Adding ston.fi swap {swap}")
