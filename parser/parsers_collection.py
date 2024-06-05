@@ -1571,6 +1571,9 @@ class StonfiPaymentMessageParser(Parser):
     async def parse(self, session: Session, context: MessageContext):
         logger.info(f"Parsing ston.fi payment request message {context.message.msg_id}")
 
+        if context.source_tx.utime < 1717574962:
+            return
+
         if not context.source_tx:
             raise Exception(f"No source transaction for message {context.message.msg_id}")
 
