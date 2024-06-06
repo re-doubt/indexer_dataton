@@ -1527,7 +1527,7 @@ class StonfiSwapParser(Parser):
         if context.source_tx.utime < 1717574962:  # last swap parsed by swap_collector
             return
 
-        exit_code, token0_amount, wallet0_address, token1_amount, wallet1_address = await self._parse_payment_message(context.content)
+        exit_code, token0_amount, wallet0_address, token1_amount, wallet1_address = self._parse_payment_message(context.content)
 
         if exit_code != 3326308581:  # User payment exit code 
             logger.debug(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
@@ -1551,7 +1551,7 @@ class StonfiSwapParser(Parser):
         except Exception as e:
             raise Exception(f"Unable to get swap message for payment msg_id {context.message.msg_id}")
 
-        token_wallet, token_amount, from_user, referral_address = await self._parse_swap_message(swap_message_content)
+        token_wallet, token_amount, from_user, referral_address = self._parse_swap_message(swap_message_content)
 
         if token_wallet == wallet0_address:
             src_wallet_address = wallet0_address
@@ -1610,7 +1610,7 @@ class StonfiSwapParser(Parser):
             }
         ), waitCommit=True)
 
-    async def _parse_swap_message(self, content: MessageContent):
+    def _parse_swap_message(self, content: MessageContent):
         cell = self._parse_boc(content.body)
         reader = BitReader(cell.data.data)
         op_id = reader.read_uint(32)
@@ -1628,7 +1628,7 @@ class StonfiSwapParser(Parser):
 
         return token_wallet, token_amount, from_user, referral_address        
 
-    async def _parse_payment_message(self, content: MessageContent):
+    def _parse_payment_message(self, content: MessageContent):
         cell = self._parse_boc(content.body)
         reader = BitReader(cell.data.data)
         op_id = reader.read_uint(32)
