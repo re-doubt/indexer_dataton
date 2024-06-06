@@ -1515,15 +1515,6 @@ class DedustV2SwapExtOutParser(Parser):
 
 class StonfiSwapParser(Parser):
     def __init__(self):
-        self.token_wallet = None
-        self.token_amount = None
-        self.from_user = None
-        self.referral_address = None
-        self.exit_code = None
-        self.token0_amount = None
-        self.wallet0_address = None
-        self.token1_amount = None
-        self.wallet1_address = None
         super(StonfiSwapParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0xf93bb43f)))
 
     @staticmethod
@@ -1536,10 +1527,10 @@ class StonfiSwapParser(Parser):
         if context.source_tx.utime < 1717574962:  # last swap parsed by swap_collector
             return
 
-        await self._parse_payment_message(context.content)
+        exit_code, token0_amount, wallet0_address, token1_amount, wallet1_address = await self._parse_payment_message(context.content)
 
-        if self.exit_code != 3326308581:  # User payment exit code 
-            logger.debug(f"Message {context.message.msg_id} is not a payment to user, exit code {self.exit_code}")
+        if exit_code != 3326308581:  # User payment exit code 
+            logger.debug(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
             return
 
         if context.message.destination != STONFI_ROUTER:
@@ -1558,16 +1549,18 @@ class StonfiSwapParser(Parser):
         except Exception as e:
             raise Exception(f"Unable to get swap message for payment msg_id {context.message.msg_id}")
 
-        if self.token_wallet == self.wallet0_address:
-            src_wallet_address = self.wallet0_address
-            src_amount = self.token_amount - self.token0_amount
-            dst_wallet_address = self.wallet1_address
-            dst_amount = self.token1_amount
-        elif self.token_wallet == self.wallet1_address:
-            src_wallet_address = self.wallet1_address
-            src_amount = self.token_amount - self.token1_amount
-            dst_wallet_address = self.wallet0_address
-            dst_amount = self.token0_amount
+        token_wallet, token_amount, from_user, referral_address = await self._parse_swap_message(swap_message_content)
+
+        if token_wallet == wallet0_address:
+            src_wallet_address = wallet0_address
+            src_amount = token_amount - token0_amount
+            dst_wallet_address = wallet1_address
+            dst_amount = token1_amount
+        elif token_wallet == wallet1_address:
+            src_wallet_address = wallet1_address
+            src_amount = token_amount - token1_amount
+            dst_wallet_address = wallet0_address
+            dst_amount = token0_amount
         else:
             logger.warning(f"Wallet addresses in swap message id={swap_message_id} and payment message id={context.message.msg_id} don't match")
             return
@@ -1584,14 +1577,14 @@ class StonfiSwapParser(Parser):
             msg_id=swap_message_id,
             originated_msg_id=await get_originated_msg_id(session, context.message),
             platform="ston.fi",
-            swap_utime=context.source_tx.utime,
-            swap_user=self.from_user,
+            swap_utime=context.destination_tx.utime,
+            swap_user=from_user,
             swap_pool=context.message.source,
             swap_src_token=src_wallet.jetton_master,
             swap_dst_token=dst_wallet.jetton_master,
             swap_src_amount=src_amount,
             swap_dst_amount=dst_amount,
-            referral_address=self.referral_address,
+            referral_address=referral_address,
             parser_version=DexSwapParsed.MESSAGE_PARSER,
         )
 
@@ -1610,7 +1603,7 @@ class StonfiSwapParser(Parser):
                 "asset_out": dst_wallet.jetton_master,
                 "amount_in": str(src_amount),
                 "amount_out": str(dst_amount),
-                "swap_user": self.from_user,
+                "swap_user": from_user,
                 "db_ref": swap_message_id
             }
         ), waitCommit=True)
@@ -1621,14 +1614,17 @@ class StonfiSwapParser(Parser):
         op_id = reader.read_uint(32)
         query_id = reader.read_uint(64)
         to_address = reader.read_address()
-        self.token_wallet = reader.read_address()
-        self.token_amount = reader.read_coins()
+        token_wallet = reader.read_address()
+        token_amount = reader.read_coins()
         min_out = reader.read_coins()
         has_ref_address = reader.read_uint(1)
         addresses_reader = BitReader(cell.refs.pop(0).data.data)
-        self.from_user = addresses_reader.read_address()
+        from_user = addresses_reader.read_address()
+        referral_address = None
         if has_ref_address:
-            self.referral_address = addresses_reader.read_address()
+            referral_address = addresses_reader.read_address()
+
+        return token_wallet, token_amount, from_user, referral_address        
 
     async def _parse_payment_message(self, content: MessageContent):
         cell = self._parse_boc(content.body)
@@ -1636,12 +1632,14 @@ class StonfiSwapParser(Parser):
         op_id = reader.read_uint(32)
         query_id = reader.read_uint(64)
         owner = reader.read_address()
-        self.exit_code = reader.read_uint(32)
+        exit_code = reader.read_uint(32)
         params_reader = BitReader(cell.refs.pop(0).data.data)
-        self.token0_amount = params_reader.read_coins()
-        self.wallet0_address = params_reader.read_address()
-        self.token1_amount = params_reader.read_coins()
-        self.wallet1_address = params_reader.read_address()
+        token0_amount = params_reader.read_coins()
+        wallet0_address = params_reader.read_address()
+        token1_amount = params_reader.read_coins()
+        wallet1_address = params_reader.read_address()
+
+        return exit_code, token0_amount, wallet0_address, token1_amount, wallet1_address
 
 # class HugeTonTransfersParser(Parser):
 #     class MessageValuePredicate(ParserPredicate):
