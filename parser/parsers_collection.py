@@ -1543,6 +1543,8 @@ class StonfiSwapParser(Parser):
 
         try:
             swap_message_id = await get_prev_msg_id(session, context.message)
+            if not swap_message_id:
+                raise Exception(f"Prev message for {context.message.msg_id} not found")
             swap_message_content = await get_message_content(session, swap_message_id)
             if not swap_message_content:
                 raise Exception(f"Message {swap_message_id} content not found")
