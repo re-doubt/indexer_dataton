@@ -723,8 +723,8 @@ async def get_jetton_master_fetch_tasks(session: Session, limit: int):
         return None
     return [row[0] for row in res]
 
-async def get_stonfi_swap_message(session: Session, tx_id: int) -> StonfiSwapMessage:
-    res = (await session.execute(select(StonfiSwapMessage).filter(StonfiSwapMessage.tx_id == tx_id))).first()
+async def get_message_content(session: Session, msg_id: int) -> MessageContent:
+    res = (await session.execute(select(MessageContent).filter(MessageContent.msg_id == msg_id))).first()
     if not res:
         return None
     return res[0]

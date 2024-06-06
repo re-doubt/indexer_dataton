@@ -732,24 +732,6 @@ class DexSwapParsed(Base):
         Index('dex_swap_parsed_index_1', 'swap_user')
     )
 
-@dataclass(init=False)
-class StonfiSwapMessage(Base):
-    __tablename__ = 'stonfi_swap_msg'
-
-    id: int = Column(BigInteger, primary_key=True)
-    tx_id: int = Column(BigInteger)
-    originated_msg_id: int = Column(BigInteger)
-    msg_id: int = Column(BigInteger)
-    swap_user: str = Column(String)
-    swap_pool: str = Column(String)
-    token_wallet: str = Column(String)
-    token_amount: decimal.Decimal = Column(Numeric(scale=0))
-    referral_address: str = Column(String)
-
-    __table_args__ = (
-        UniqueConstraint('tx_id'),
-    )
-
 """
 EVAA entities
 """
