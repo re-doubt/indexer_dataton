@@ -1549,7 +1549,7 @@ class StonfiSwapParser(Parser):
             if not swap_message_content:
                 raise Exception(f"Message {swap_message_id} content not found")
         except Exception as e:
-            raise Exception(f"Unable to get swap message for payment msg_id {context.message.msg_id}")
+            raise Exception(f"Unable to get swap message for payment msg_id {context.message.msg_id}: {e}")
 
         token_wallet, token_amount, from_user, referral_address = self._parse_swap_message(swap_message_content)
 
