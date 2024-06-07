@@ -22,6 +22,8 @@ from aiokafka import AIOKafkaProducer
 from parser.eventbus import Event
 
 
+STONFI_ROUTER = "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt"
+
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 def opt_apply(value, func):
@@ -1511,6 +1513,135 @@ class DedustV2SwapExtOutParser(Parser):
             }
         ), waitCommit=True)
 
+class StonfiSwapParser(Parser):
+    def __init__(self):
+        super(StonfiSwapParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0xf93bb43f)))
+
+    @staticmethod
+    def parser_name() -> str:
+        return "StonfiSwapParser"
+
+    async def parse(self, session: Session, context: MessageContext):
+        logger.info(f"Parsing ston.fi swap, payment msg_id {context.message.msg_id}")
+
+        if context.source_tx.utime < 1717574962:  # last swap parsed by swap_collector
+            return
+
+        exit_code, token0_amount, wallet0_address, token1_amount, wallet1_address = self._parse_payment_message(context.content)
+
+        if exit_code != 3326308581:  # User payment exit code 
+            logger.debug(f"Message {context.message.msg_id} is not a payment to user, exit code {exit_code}")
+            return
+
+        if context.message.destination != STONFI_ROUTER:
+            logger.warning(f"Payment request message {context.message.msg_id} was sent to unknown router")
+            return
+
+        if context.destination_tx.action_result_code != 0 or context.destination_tx.compute_exit_code != 0:
+            logger.warning(f"Destination transaction for message {context.message.msg_id} was unsuccessful")
+            return
+
+        try:
+            swap_message_id = await get_prev_msg_id(session, context.message)
+            if not swap_message_id:
+                raise Exception(f"Prev message for {context.message.msg_id} not found")
+            swap_message_content = await get_message_content(session, swap_message_id)
+            if not swap_message_content:
+                raise Exception(f"Message {swap_message_id} content not found")
+        except Exception as e:
+            raise Exception(f"Unable to get swap message for payment msg_id {context.message.msg_id}: {e}")
+
+        token_wallet, token_amount, from_user, referral_address = self._parse_swap_message(swap_message_content)
+
+        if token_wallet == wallet0_address:
+            src_wallet_address = wallet0_address
+            src_amount = token_amount - token0_amount
+            dst_wallet_address = wallet1_address
+            dst_amount = token1_amount
+        elif token_wallet == wallet1_address:
+            src_wallet_address = wallet1_address
+            src_amount = token_amount - token1_amount
+            dst_wallet_address = wallet0_address
+            dst_amount = token0_amount
+        else:
+            logger.warning(f"Wallet addresses in swap message id={swap_message_id} and payment message id={context.message.msg_id} don't match")
+            return
+
+        src_wallet = await get_wallet(session, src_wallet_address)
+        if not src_wallet:
+            raise Exception(f"Jetton wallet not inited yet {src_wallet_address}")
+        
+        dst_wallet = await get_wallet(session, dst_wallet_address)
+        if not dst_wallet:
+            raise Exception(f"Jetton wallet not inited yet {dst_wallet_address}")
+
+        swap = DexSwapParsed(
+            msg_id=swap_message_id,
+            originated_msg_id=await get_originated_msg_id(session, context.message),
+            platform="ston.fi",
+            swap_utime=context.destination_tx.utime,
+            swap_user=from_user,
+            swap_pool=context.message.source,
+            swap_src_token=src_wallet.jetton_master,
+            swap_dst_token=dst_wallet.jetton_master,
+            swap_src_amount=src_amount,
+            swap_dst_amount=dst_amount,
+            referral_address=referral_address,
+            parser_version=DexSwapParsed.MESSAGE_PARSER,
+        )
+
+        logger.info(f"Adding ston.fi swap {swap}")
+        await upsert_entity(session, swap)
+
+        return GeneratedEvent(event=Event(
+            event_scope="DEX",
+            event_target="ston.fi",
+            finding_type="Info",
+            event_type="Swap",
+            severity="Medium",
+            data={
+                "pool": context.message.source,
+                "asset_in": src_wallet.jetton_master,
+                "asset_out": dst_wallet.jetton_master,
+                "amount_in": str(src_amount),
+                "amount_out": str(dst_amount),
+                "swap_user": from_user,
+                "db_ref": swap_message_id
+            }
+        ), waitCommit=True)
+
+    def _parse_swap_message(self, content: MessageContent):
+        cell = self._parse_boc(content.body)
+        reader = BitReader(cell.data.data)
+        op_id = reader.read_uint(32)
+        query_id = reader.read_uint(64)
+        to_address = reader.read_address()
+        token_wallet = reader.read_address()
+        token_amount = reader.read_coins()
+        min_out = reader.read_coins()
+        has_ref_address = reader.read_uint(1)
+        addresses_reader = BitReader(cell.refs.pop(0).data.data)
+        from_user = addresses_reader.read_address()
+        referral_address = None
+        if has_ref_address:
+            referral_address = addresses_reader.read_address()
+
+        return token_wallet, token_amount, from_user, referral_address        
+
+    def _parse_payment_message(self, content: MessageContent):
+        cell = self._parse_boc(content.body)
+        reader = BitReader(cell.data.data)
+        op_id = reader.read_uint(32)
+        query_id = reader.read_uint(64)
+        owner = reader.read_address()
+        exit_code = reader.read_uint(32)
+        params_reader = BitReader(cell.refs.pop(0).data.data)
+        token0_amount = params_reader.read_coins()
+        wallet0_address = params_reader.read_address()
+        token1_amount = params_reader.read_coins()
+        wallet1_address = params_reader.read_address()
+
+        return exit_code, token0_amount, wallet0_address, token1_amount, wallet1_address
 
 # class HugeTonTransfersParser(Parser):
 #     class MessageValuePredicate(ParserPredicate):

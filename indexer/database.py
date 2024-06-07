@@ -710,6 +710,9 @@ class NFTItemSale(Base):
 class DexSwapParsed(Base):
     __tablename__ = 'dex_swap_parsed'
 
+    SWAP_COLLECTOR = 1
+    MESSAGE_PARSER = 2
+
     id: int = Column(BigInteger, primary_key=True)
     msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
     originated_msg_id: int = Column(BigInteger, ForeignKey('messages.msg_id'))
@@ -722,6 +725,7 @@ class DexSwapParsed(Base):
     swap_src_amount: decimal.Decimal = Column(Numeric(scale=0))
     swap_dst_amount: decimal.Decimal = Column(Numeric(scale=0))
     referral_address: str = Column(String)
+    parser_version: int = Column(Integer)
 
     __table_args__ = (
         UniqueConstraint('msg_id'),

@@ -722,3 +722,9 @@ async def get_jetton_master_fetch_tasks(session: Session, limit: int):
     if not res:
         return None
     return [row[0] for row in res]
+
+async def get_message_content(session: Session, msg_id: int) -> MessageContent:
+    res = (await session.execute(select(MessageContent).filter(MessageContent.msg_id == msg_id))).first()
+    if not res:
+        return None
+    return res[0]
