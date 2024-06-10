@@ -506,7 +506,7 @@ async def remove_outbox_item(session: Session, outbox_id: int):
 async def postpone_outbox_item(session: Session, outbox: ParseOutbox, timeout: int, is_adaptive_timeout: bool = False):
     attempts = (outbox.attempts + 1) if outbox.attempts else 1
     if is_adaptive_timeout:
-        timeout = 10 + int(timeout / (1 + 2.7 ** (12 - attempts))) if attempts < 15 else timeout
+        timeout = (10 + int(timeout / (1 + 2.7 ** (12 - attempts)))) if attempts < 15 else timeout
     await session.execute(update(ParseOutbox).where(ParseOutbox.outbox_id == outbox.outbox_id)\
                           .values(added_time=int(datetime.today().timestamp()) + timeout,
                                   attempts=attempts,
