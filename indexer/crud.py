@@ -503,10 +503,13 @@ async def get_outbox_items_by_min_seqno(session: Session):
 async def remove_outbox_item(session: Session, outbox_id: int):
     return await session.execute(delete(ParseOutbox).where(ParseOutbox.outbox_id == outbox_id))
 
-async def postpone_outbox_item(session: Session, outbox: ParseOutbox, seconds: int):
+async def postpone_outbox_item(session: Session, outbox: ParseOutbox, timeout: int, is_adaptive_timeout: bool = False):
+    attempts = (outbox.attempts + 1) if outbox.attempts else 1
+    if is_adaptive_timeout:
+        timeout = (10 + int(timeout / (1 + 2.7 ** (12 - attempts)))) if attempts < 15 else timeout
     await session.execute(update(ParseOutbox).where(ParseOutbox.outbox_id == outbox.outbox_id)\
-                          .values(added_time=int(datetime.today().timestamp()) + seconds,
-                                  attempts=(outbox.attempts + 1) if outbox.attempts else 1,
+                          .values(added_time=int(datetime.today().timestamp()) + timeout,
+                                  attempts=attempts,
                                   mc_seqno=None))
 
 async def get_prev_msg_id(session: Session, msg: Message) -> int:

@@ -24,6 +24,7 @@ parser:
     url: ${PARSER_EXECUTOR_URL}
   retry:
     timeout: 300
+    max_adaptive_timeout: 86400
 fetcher:
   task_time_limit: 1200
   poll_interval: 30

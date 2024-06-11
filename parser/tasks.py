@@ -107,7 +107,7 @@ async def process_item(session: SessionMaker, eventbus: EventBus, task: ParseOut
                     break
     except Exception as e:
         logger.error(f'Failed to perform parsing for outbox item {task.outbox_id}: {traceback.format_exc()}')
-        await postpone_outbox_item(session, task, settings.parser.retry.timeout)
+        await postpone_outbox_item(session, task, settings.parser.retry.max_adaptive_timeout, True)
         # await asyncio.sleep(1) # simple throttling
         successful = False
     if successful:
