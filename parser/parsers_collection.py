@@ -971,6 +971,24 @@ class NFTTransferParser(Parser):
         await upsert_entity(session, nft_history)
 
 
+class NFTItemSaleChangeParser(Parser):
+    def __init__(self):
+        super(NFTItemSaleChangeParser, self).__init__(DestinationTxRequiredPredicate(OpCodePredicate(0x6c6c2080)))
+
+    @staticmethod
+    def parser_name() -> str:
+        return "NFTItemSaleChangeParser"
+
+    async def parse(self, session: Session, context: MessageContext):
+        logger.info(f"Parsing NFT sale change {context.message.msg_id}")
+
+        if context.destination_tx.action_result_code == 0 and context.destination_tx.compute_exit_code == 0:
+            sale = await get_nft_sale(session, context.message.destination)
+
+            if sale:
+                await reset_account(session, sale.address)
+
+
 class NFTCollectionParser(ContractsExecutorParser):
     def __init__(self):
         super(NFTCollectionParser, self).__init__()
