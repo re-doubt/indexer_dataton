@@ -22,6 +22,7 @@ SUPPORTED_OP_CODES = set(map(op_to_signed, [
     0x00000009, # DAOLama extend loan
     0x5445efee, # Hipo tokens_minted
     0xf93bb43f, # Ston.fi payment request
+    0x6c6c2080, # Getgems sale V3 price changing
 ]))
 EVAA_ROUTER = 'EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr'
 
