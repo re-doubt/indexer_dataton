@@ -35,11 +35,12 @@ class RemoteDataFetcher:
         self.ipfs_gateway = ipfs_gateway
         self.timeout = timeout
         self.max_attempts = max_attempts
+        self.headers = {'User-Agent': 'redoubt'}
 
     async def fetch(self, url):
         logger.debug(f"Fetching {url}")
         parsed_url = urlparse(url)
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(headers=self.headers) as session:
             if parsed_url.scheme == 'ipfs':
                 # assert len(parsed_url.path) == 0, parsed_url
                 async with session.get(self.ipfs_gateway + parsed_url.netloc + parsed_url.path, timeout=self.timeout) as resp:
