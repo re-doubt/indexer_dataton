@@ -547,25 +547,11 @@ class ContractsExecutorParser(Parser):
             if content['content_layout'] == 'off-chain':
                 metadata_url = content['content']
                 metadata = {}
-                # metadata_json = await self.fetcher.fetch(metadata_url)
-                # try:
-                #     metadata = json.loads(metadata_json)
-                # except Exception as e:
-                #     logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
-                #     metadata = {}
-                # metadata['content_layout'] = content['content_layout']
             else:
                 metadata = content['content']
                 if 'uri' in metadata:
                     logger.info(f"Semi on-chain layout detected, uri: {metadata['uri']}")
                     metadata_url = metadata['uri']
-                    # metadata_json = await self.fetcher.fetch(metadata_url)
-                    # try:
-                    #     aux_metadata = json.loads(metadata_json)
-                    #     for k, v in aux_metadata.items():
-                    #         metadata[k] = v
-                    # except Exception as e:
-                    #     logger.error(f"Failed to parse metadata for {metadata_url}: {e}")
                 else:
                     metadata_url = None
 
@@ -682,42 +668,9 @@ class NotcoinJettonWalletParser(Parser):
         await upsert_entity(session, wallet, constraint="address")
 
 
-class RemoteDataFetcher:
-    def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=3):
-        self.ipfs_gateway = ipfs_gateway
-        self.timeout = timeout
-        self.max_attempts = max_attempts
-
-    async def fetch(self, url):
-        logger.debug(f"Fetching {url}")
-        parsed_url = urlparse(url)
-        async with aiohttp.ClientSession() as session:
-            if parsed_url.scheme == 'ipfs':
-                # assert len(parsed_url.path) == 0, parsed_url
-                async with session.get(self.ipfs_gateway + parsed_url.netloc + parsed_url.path, timeout=self.timeout) as resp:
-                    return await resp.text()
-            elif parsed_url.scheme is None or len(parsed_url.scheme) == 0:
-                logger.error(f"No schema for URL: {url}")
-                return None
-            else:
-                if parsed_url.netloc == 'localhost' or parsed_url.netloc in ["ton-metadata.fanz.ee", "startupmarket.io", "mashamimosa.ru", "server.tonguys.org"]:
-                    return None
-                retry = 0
-                while retry < self.max_attempts:
-                    try:
-                        async with session.get(url, timeout=self.timeout) as resp:
-                            return await resp.text()
-                    except Exception as e:
-                        logger.error(f"Unable to fetch data from {url}", e)
-                        await asyncio.sleep(1)
-                    retry += 1
-                return None
-
-
 class JettonMasterParser(ContractsExecutorParser):
     def __init__(self):
         super(JettonMasterParser, self).__init__()
-        self.fetcher = RemoteDataFetcher()
 
     @staticmethod
     def parser_name() -> str:
@@ -754,7 +707,13 @@ class JettonMasterParser(ContractsExecutorParser):
         )
         logger.info(f"Adding jetton master {master}")
 
-        excluded_fields = ["symbol", "name", "image", "image_data", "decimals", "description"] if metadata_url is not None else None
+        if metadata_url is None:
+            excluded_fields = None
+        else:
+            excluded_fields = [
+                key for key in ("symbol", "name", "image", "image_data", "decimals", "description")
+                if key not in metadata
+            ]
         await upsert_entity(session, master, constraint="address", excluded_fields=excluded_fields)
 
 
@@ -992,7 +951,6 @@ class NFTItemSaleChangeParser(Parser):
 class NFTCollectionParser(ContractsExecutorParser):
     def __init__(self):
         super(NFTCollectionParser, self).__init__()
-        self.fetcher = RemoteDataFetcher(timeout=10, max_attempts=2)
 
     @staticmethod
     def parser_name() -> str:
@@ -1026,7 +984,13 @@ class NFTCollectionParser(ContractsExecutorParser):
         )
         logger.info(f"Adding NFT collection {collection}")
 
-        excluded_fields = ["name", "image", "image_data", "description"] if metadata_url is not None else None
+        if metadata_url is None:
+            excluded_fields = None
+        else:
+            excluded_fields = [
+                key for key in ("name", "image", "image_data", "description")
+                if key not in metadata
+            ]
         res = await upsert_entity(session, collection, constraint="address", excluded_fields=excluded_fields)
         if res.rowcount > 0:
             logger.info(f"Discovered new NFT collection {context.account.address}")
@@ -1049,7 +1013,6 @@ class NFTCollectionParser(ContractsExecutorParser):
 class NFTItemParser(ContractsExecutorParser):
     def __init__(self):
         super(NFTItemParser, self).__init__()
-        self.fetcher = RemoteDataFetcher(timeout=3, max_attempts=2)
 
     @staticmethod
     def parser_name() -> str:
@@ -1171,7 +1134,13 @@ class NFTItemParser(ContractsExecutorParser):
             item.description = " ".join(item.description)
         logger.info(f"Adding NFT item {item}")
 
-        excluded_fields = ["name", "description", "image", "image_data", "attributes"] if metadata_url is not None else None
+        if metadata_url is None:
+            excluded_fields = None
+        else:
+            excluded_fields = [
+                key for key in ("name", "description", "image", "image_data", "attributes")
+                if key not in metadata
+            ]
         res = await upsert_entity(session, item, constraint="address", excluded_fields=excluded_fields)
 
         history_mint = await get_nft_history_mint(session, item.address)

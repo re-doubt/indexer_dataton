@@ -9,7 +9,7 @@ from loguru import logger
 from config import settings
 from indexer.database import *
 from indexer.crud import *
-from parser.parsers_collection import RemoteDataFetcher, opt_apply
+from parser.parsers_collection import opt_apply
 from fetcher.celery import app
 
 
@@ -28,6 +28,38 @@ def configure_worker(signal=None, sender=None, **kwargs):
 def setup_periodic_tasks(sender, **kwargs):
     logger.info("Setting up periodic fetcher invocation")
     sender.add_periodic_task(settings.fetcher.poll_interval, fetch_outbox_task.s("test"), name="Fetcher task")
+
+
+class RemoteDataFetcher:
+    def __init__(self, ipfs_gateway='https://w3s.link/ipfs/', timeout=5, max_attempts=3):
+        self.ipfs_gateway = ipfs_gateway
+        self.timeout = timeout
+        self.max_attempts = max_attempts
+
+    async def fetch(self, url):
+        logger.debug(f"Fetching {url}")
+        parsed_url = urlparse(url)
+        async with aiohttp.ClientSession() as session:
+            if parsed_url.scheme == 'ipfs':
+                # assert len(parsed_url.path) == 0, parsed_url
+                async with session.get(self.ipfs_gateway + parsed_url.netloc + parsed_url.path, timeout=self.timeout) as resp:
+                    return await resp.text()
+            elif parsed_url.scheme is None or len(parsed_url.scheme) == 0:
+                logger.error(f"No schema for URL: {url}")
+                return None
+            else:
+                if parsed_url.netloc == 'localhost' or parsed_url.netloc in ["ton-metadata.fanz.ee", "startupmarket.io", "mashamimosa.ru", "server.tonguys.org"]:
+                    return None
+                retry = 0
+                while retry < self.max_attempts:
+                    try:
+                        async with session.get(url, timeout=self.timeout) as resp:
+                            return await resp.text()
+                    except Exception as e:
+                        logger.error(f"Unable to fetch data from {url}", e)
+                        await asyncio.sleep(1)
+                    retry += 1
+                return None
 
 
 async def fetch_metadata(metadata_url: str):
@@ -49,10 +81,14 @@ async def process_nft_collection(entity: NFTCollection):
         metadata = await fetch_metadata(entity.metadata_url)
 
         if metadata:
-            entity.name = metadata.get("name")
-            entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
-            entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
-            entity.description = metadata.get("description")
+            if "name" in metadata:
+                entity.name = metadata.get("name")
+            if "image" in metadata:
+                entity.image = metadata.get("image").replace("\x00", "")
+            if "image_data" in metadata:
+                entity.image_data = metadata.get("image_data").replace("\x00", "")
+            if "description":
+                entity.description = metadata.get("description")
             entity.metadata_update_time = None
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for NFT collection: {entity.address}")
@@ -70,11 +106,16 @@ async def process_nft_item(entity: NFTItem):
         metadata = await fetch_metadata(entity.metadata_url)
 
         if metadata:
-            entity.name = metadata.get("name")
-            entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
-            entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
-            entity.description = metadata.get("description")
-            entity.attributes = json.dumps(metadata.get("attributes")) if "attributes" in metadata else None
+            if "name" in metadata:
+                entity.name = metadata.get("name")
+            if "image" in metadata:
+                entity.image = metadata.get("image").replace("\x00", "")
+            if "image_data" in metadata:
+                entity.image_data = metadata.get("image_data").replace("\x00", "")
+            if "description" in metadata:
+                entity.description = metadata.get("description")
+            if "attributes" in metadata:
+                entity.attributes = json.dumps(metadata.get("attributes"))
             entity.metadata_update_time = None
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for NFT item: {entity.address}")
@@ -92,12 +133,18 @@ async def process_jetton_master(entity: JettonMaster):
         metadata = await fetch_metadata(entity.metadata_url)
 
         if metadata:
-            entity.name = metadata.get("name")
-            entity.image = metadata.get("image").replace("\x00", "") if "image" in metadata else None
-            entity.image_data = metadata.get("image_data").replace("\x00", "") if "image_data" in metadata else None
-            entity.description = metadata.get("description")
-            entity.symbol = metadata.get("symbol")
-            entity.decimals = opt_apply(metadata.get("decimals"), int)
+            if "name" in metadata:
+                entity.name = metadata.get("name")
+            if "image" in metadata:
+                entity.image = metadata.get("image").replace("\x00", "")
+            if "image_data" in metadata:
+                entity.image_data = metadata.get("image_data").replace("\x00", "")
+            if "description" in metadata:
+                entity.description = metadata.get("description")
+            if "symbol" in metadata:
+                entity.symbol = metadata.get("symbol")
+            if "decimals" in metadata:
+                entity.decimals = opt_apply(metadata.get("decimals"), int)
             entity.metadata_update_time = None
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for jetton master: {entity.address}")
