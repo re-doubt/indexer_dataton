@@ -2,6 +2,7 @@ import asyncio
 import json
 import time
 
+import aiohttp
 from celery.signals import worker_process_init
 from urllib.parse import urlparse
 from loguru import logger
