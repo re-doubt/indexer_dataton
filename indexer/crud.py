@@ -195,7 +195,8 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                     insciptions += 1
                 else: # tonano case
                     msg = msgs_to_insert[i]
-                    if message_supported(msg):
+                    if message_supported(msg) and (msg['in_tx_id'] is not None or msg['destination'] == ""):
+                        # parse only supported income msgs or supported external outcome msgs
                         msg_ids_to_parse.append(msg_id_tuple)
                     else:
                         # msg_ids_to_parse.append(msg_id_tuple)
