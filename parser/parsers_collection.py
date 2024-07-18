@@ -1190,8 +1190,8 @@ class NFTItemParser(ContractsExecutorParser):
                 logger.info(f"Adding NFT history event {nft_history}")
                 await upsert_entity(session, nft_history)
 
-            except Exception:
-                raise Exception(f"No NFT mint message found for item {item.address}")
+            except Exception as e:
+                raise Exception(f"No NFT mint message found for item {item.address}: {e}")
 
 
 @dataclass
