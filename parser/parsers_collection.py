@@ -1147,8 +1147,7 @@ class NFTItemParser(ContractsExecutorParser):
             ]
         res = await upsert_entity(session, item, constraint="address", excluded_fields=excluded_fields)
 
-        if collection_address:
-            await self._find_mint(session, item)
+        await self._find_mint(session, item)
 
         if res.rowcount > 0:
             logger.info(f"Discovered new NFT item {context.account.address}")
@@ -1174,7 +1173,10 @@ class NFTItemParser(ContractsExecutorParser):
         if not history_mint:
             try:
                 nft = await get_nft(session, item.address)
-                message = await get_nft_mint_message(session, item.address, item.collection)
+                message = await get_nft_mint_message(session, item.address)
+                history_event = await get_nft_history_by_msg_id(session, message.msg_id)
+                if history_event and history_event.event_type != NftHistory.EVENT_TYPE_MINT:
+                    raise Exception("An incorrect message was found as a mint (msg_id={message.msg_id})")
                 message_context = await get_messages_context(session, message.msg_id)
 
                 nft_history = NftHistory(
