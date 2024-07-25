@@ -1071,6 +1071,9 @@ class NFTItemParser(ContractsExecutorParser):
                 logger.info(f"Adding TON DNS item {item}")
 
                 res = await upsert_entity(session, item, constraint="address")
+
+                await self._find_mint(session, item)
+
                 if res.rowcount > 0:
                     logger.info(f"Discovered new TON DNS item {context.account.address}")
                     return GeneratedEvent(event=Event(
@@ -1090,6 +1093,7 @@ class NFTItemParser(ContractsExecutorParser):
                         }
                     ), waitCommit=False)
                 return
+
             logger.info(f"Getting collection info for {collection_address}")
             # need to retry query and get content as BOC
             collection_account = (await session.execute(select(AccountState)
@@ -1143,28 +1147,7 @@ class NFTItemParser(ContractsExecutorParser):
             ]
         res = await upsert_entity(session, item, constraint="address", excluded_fields=excluded_fields)
 
-        history_mint = await get_nft_history_mint(session, item.address)
-        if not history_mint:
-            try:
-                nft = await get_nft(session, context.account.address)
-                message = await get_nft_mint_message(session, item.address, item.collection)
-                message_context = await get_messages_context(session, message.msg_id)
-
-                nft_history = NftHistory(
-                    msg_id=message.msg_id,
-                    created_lt=message.created_lt,
-                    utime=message_context.destination_tx.utime,
-                    hash=await get_originated_msg_hash(session, message),
-                    event_type=NftHistory.EVENT_TYPE_MINT,
-                    nft_item_id=nft.id,
-                    nft_item_address=nft.address,
-                    collection_address=nft.collection
-                )
-                logger.info(f"Adding NFT history event {nft_history}")
-                await upsert_entity(session, nft_history)
-
-            except Exception:
-                logger.warning(f"No NFT mint message found for item {context.account.address}")
+        await self._find_mint(session, item)
 
         if res.rowcount > 0:
             logger.info(f"Discovered new NFT item {context.account.address}")
@@ -1184,6 +1167,34 @@ class NFTItemParser(ContractsExecutorParser):
                     "owner": owner_address
                 }
             ), waitCommit=False)
+
+    async def _find_mint(self, session: Session, item: NFTItem):
+        history_mint = await get_nft_history_mint(session, item.address)
+        if not history_mint:
+            try:
+                nft = await get_nft(session, item.address)
+                message = await get_nft_mint_message(session, item.address)
+                history_event = await get_nft_history_by_msg_id(session, message.msg_id)
+                if history_event and history_event.event_type != NftHistory.EVENT_TYPE_MINT:
+                    raise Exception("An incorrect message was found as a mint (msg_id={message.msg_id})")
+                message_context = await get_messages_context(session, message.msg_id)
+
+                nft_history = NftHistory(
+                    msg_id=message.msg_id,
+                    created_lt=message.created_lt,
+                    utime=message_context.destination_tx.utime,
+                    hash=await get_originated_msg_hash(session, message),
+                    event_type=NftHistory.EVENT_TYPE_MINT,
+                    nft_item_id=nft.id,
+                    nft_item_address=nft.address,
+                    collection_address=nft.collection
+                )
+                logger.info(f"Adding NFT history event {nft_history}")
+                await upsert_entity(session, nft_history)
+
+            except Exception as e:
+                raise Exception(f"No NFT mint message found for item {item.address}: {e}")
+
 
 @dataclass
 class SaleContract:
