@@ -28,8 +28,8 @@ parser:
 fetcher:
   task_time_limit: 1200
   poll_interval: 30
-  batch_size: 50
-  retry_interval: 3600
+  batch_size: 20
+  retry_interval: 7200
   retry:
     timeout: 300
 postgres:

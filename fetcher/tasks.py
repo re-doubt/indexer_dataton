@@ -126,7 +126,7 @@ async def process_nft_item(entity: NFTItem):
             raise Exception()
 
     except Exception as e:
-        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval * 168  # retry after 1 week
+        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval * 168  # retry coefficient for nft_item
         logger.error(f"Failed to perform fetching for NFT item {entity.address}: {e}")
 
 
