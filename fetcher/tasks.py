@@ -164,22 +164,23 @@ async def fetch_all():
 
     while True:
         async with SessionMaker() as session:
+            tasks = []
+
             nft_collection_tasks = await get_nft_collection_fetch_tasks(session, settings.fetcher.batch_size)
             if nft_collection_tasks:
-                tasks = [process_nft_collection(task) for task in nft_collection_tasks]
-                await asyncio.gather(*tasks)
+                tasks += [process_nft_collection(task) for task in nft_collection_tasks]
 
             nft_item_tasks = await get_nft_item_fetch_tasks(session, settings.fetcher.batch_size)
             if nft_item_tasks:
-                tasks = [process_nft_item(task) for task in nft_item_tasks]
-                await asyncio.gather(*tasks)
+                tasks += [process_nft_item(task) for task in nft_item_tasks]
 
             jetton_master_tasks = await get_jetton_master_fetch_tasks(session, settings.fetcher.batch_size)
             if jetton_master_tasks:
-                tasks = [process_jetton_master(task) for task in jetton_master_tasks]
-                await asyncio.gather(*tasks)
+                tasks += [process_jetton_master(task) for task in jetton_master_tasks]
 
-            if not nft_collection_tasks and not nft_item_tasks and not jetton_master_tasks:
+            if tasks:
+                await asyncio.gather(*tasks)
+            else:
                 logger.info("Fetch queue is empty, exiting")
                 break
 
