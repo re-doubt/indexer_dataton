@@ -84,13 +84,13 @@ async def process_nft_collection(entity: NFTCollection):
 
         if metadata:
             if "name" in metadata:
-                entity.name = metadata.get("name")
+                entity.name = str(metadata.get("name"))
             if "image" in metadata:
-                entity.image = metadata.get("image").replace("\x00", "")
+                entity.image = str(metadata.get("image")).replace("\x00", "")
             if "image_data" in metadata:
-                entity.image_data = metadata.get("image_data").replace("\x00", "")
+                entity.image_data = str(metadata.get("image_data")).replace("\x00", "")
             if "description":
-                entity.description = metadata.get("description")
+                entity.description = str(metadata.get("description"))
             entity.metadata_update_time = None
             entity.metadata_updated = False
             logger.info(f"Fetching metadata for NFT collection: {entity.address}")
@@ -109,13 +109,13 @@ async def process_nft_item(entity: NFTItem):
 
         if metadata:
             if "name" in metadata:
-                entity.name = metadata.get("name")
+                entity.name = str(metadata.get("name"))
             if "image" in metadata:
-                entity.image = metadata.get("image").replace("\x00", "")
+                entity.image = str(metadata.get("image")).replace("\x00", "")
             if "image_data" in metadata:
-                entity.image_data = metadata.get("image_data").replace("\x00", "")
+                entity.image_data = str(metadata.get("image_data")).replace("\x00", "")
             if "description" in metadata:
-                entity.description = metadata.get("description")
+                entity.description = str(metadata.get("description"))
             if "attributes" in metadata:
                 entity.attributes = json.dumps(metadata.get("attributes"))
             entity.metadata_update_time = None
@@ -126,7 +126,7 @@ async def process_nft_item(entity: NFTItem):
             raise Exception()
 
     except Exception as e:
-        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval
+        entity.metadata_update_time = int(time.time()) + settings.fetcher.retry_interval * 168  # retry after 1 week
         logger.error(f"Failed to perform fetching for NFT item {entity.address}: {e}")
 
 
@@ -136,15 +136,15 @@ async def process_jetton_master(entity: JettonMaster):
 
         if metadata:
             if "name" in metadata:
-                entity.name = metadata.get("name")
+                entity.name = str(metadata.get("name"))
             if "image" in metadata:
-                entity.image = metadata.get("image").replace("\x00", "")
+                entity.image = str(metadata.get("image")).replace("\x00", "")
             if "image_data" in metadata:
-                entity.image_data = metadata.get("image_data").replace("\x00", "")
+                entity.image_data = str(metadata.get("image_data")).replace("\x00", "")
             if "description" in metadata:
-                entity.description = metadata.get("description")
+                entity.description = str(metadata.get("description"))
             if "symbol" in metadata:
-                entity.symbol = metadata.get("symbol")
+                entity.symbol = str(metadata.get("symbol"))
             if "decimals" in metadata:
                 entity.decimals = opt_apply(metadata.get("decimals"), int)
             entity.metadata_update_time = None
