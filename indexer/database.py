@@ -494,6 +494,7 @@ class JettonTransfer(Base):
     forward_ton_amount: int = Column(BigInteger)
     forward_payload: str = Column(LargeBinary)
     sub_op: int = Column(BigInteger)
+    comment: str = Column(String)
 
 
     __table_args__ = (Index('jetton_transfer_index_1', 'source_owner'),
