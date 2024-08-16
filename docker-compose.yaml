@@ -191,13 +191,18 @@ services:
     restart: unless-stopped
     logging: *logging
     environment:
-      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq2
       RABBITMQ_PORT: 5672
-      REDIS_HOST: redis
+      REDIS_HOST: redis2
       REDIS_PORT: 6379
     secrets:
       - postgres_password
-    depends_on: *common-depends-on
+    depends_on: 
+      <<: *common-depends-on
+      redis2:
+        condition: service_started
+      rabbitmq2:
+        condition: service_started
 
   contracts-executor_1:
     build:
