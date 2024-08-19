@@ -224,11 +224,12 @@ class JettonTransferParser(Parser):
                 sub_op = fp_reader.read_uint(32)
                 if sub_op == 0:
                     try:
-                        comment = fp_reader.read_remaining().tobytes().decode()
+                        comment_bytes = fp_reader.read_remaining().tobytes()
                         while len(forward_payload.refs) > 0:
                             forward_payload = forward_payload.refs[0]
-                            comment += fp_reader.read_remaining().tobytes().decode()
-                        comment = comment.replace('\x00', '')
+                            fp_reader = BitReader(forward_payload.data.data)
+                            comment_bytes += fp_reader.read_remaining().tobytes()
+                        comment = comment_bytes.decode().replace('\x00', '')
                     except BaseException as e:
                         comment = None
                         logger.error(f"Error parsing jetton transfer comment for message {context.message.msg_id}: {e}")
