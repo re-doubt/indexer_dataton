@@ -223,7 +223,16 @@ class JettonTransferParser(Parser):
             if fp_reader.slice_bits() >= 32:
                 sub_op = fp_reader.read_uint(32)
                 if sub_op == 0:
-                    comment = fp_reader.read_remaining().tobytes().decode()
+                    try:
+                        comment = fp_reader.read_remaining().tobytes().decode()
+                        while len(forward_payload.refs) > 0:
+                            forward_payload = forward_payload.refs[0]
+                            comment += fp_reader.read_remaining().tobytes().decode()
+                        comment = comment.replace('\x00', '')
+                    except BaseException as e:
+                        comment = None
+                        logger.error(f"Error parsing jetton transfer comment for message {context.message.msg_id}: {e}")
+
         """
         destination_tx for jetton transfer contains internal_transfer (it is not enforced by TEP-74)
         execution and it has to be successful
