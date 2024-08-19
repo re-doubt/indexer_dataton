@@ -8,7 +8,7 @@ indexer:
   workers_count: ${WORKERS_COUNT}
   init_mc_seqno: ${START_SEQNO}
   smallest_mc_seqno: ${BOTTOM_SEQNO}
-  blocks_per_task: 30
+  blocks_per_task: 1
   max_tasks_per_child: 50
   task_time_limit: 1200
   accounts_index_batch: 1000
@@ -18,8 +18,8 @@ indexer:
 parser:
   max_tasks_per_child: 60
   task_time_limit: 1200
-  poll_interval: 30
-  batch_size: 10
+  poll_interval: 10
+  batch_size: 100
   executor:
     url: ${PARSER_EXECUTOR_URL}
   retry:
