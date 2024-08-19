@@ -217,10 +217,23 @@ class JettonTransferParser(Parser):
             logger.error(f"Unable to parse forward payload {e}")
 
         sub_op = None
+        comment = None
         if forward_payload is not None:
             fp_reader = BitReader(forward_payload.data.data)
             if fp_reader.slice_bits() >= 32:
                 sub_op = fp_reader.read_uint(32)
+                if sub_op == 0:
+                    try:
+                        comment_bytes = fp_reader.read_remaining().tobytes()
+                        while len(forward_payload.refs) > 0:
+                            forward_payload = forward_payload.refs[0]
+                            fp_reader = BitReader(forward_payload.data.data)
+                            comment_bytes += fp_reader.read_remaining().tobytes()
+                        comment = comment_bytes.decode().replace('\x00', '')
+                    except BaseException as e:
+                        comment = None
+                        logger.error(f"Error parsing jetton transfer comment for message {context.message.msg_id}: {e}")
+
         """
         destination_tx for jetton transfer contains internal_transfer (it is not enforced by TEP-74)
         execution and it has to be successful
@@ -241,7 +254,8 @@ class JettonTransferParser(Parser):
             custom_payload = custom_payload.serialize_boc() if custom_payload is not None else None,
             forward_ton_amount = forward_ton_amount,
             forward_payload = forward_payload.serialize_boc() if forward_payload is not None else None,
-            sub_op = sub_op
+            sub_op = sub_op,
+            comment = comment,
         )
         logger.info(f"Adding jetton transfer {transfer}")
         await upsert_entity(session, transfer)
