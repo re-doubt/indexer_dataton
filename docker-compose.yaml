@@ -254,15 +254,12 @@ services:
       LIBRARY_CACHE: /opt/mc_libs_cache/mc_libs_5.txt
     logging: *logging
 
-
-
   rabbitmq2:
     image: rabbitmq
     restart: unless-stopped
   redis2:
     image: redis:latest
     restart: unless-stopped
-
   rabbitmq:
     image: rabbitmq
     restart: unless-stopped

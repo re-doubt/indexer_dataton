@@ -69,7 +69,7 @@ async def process_item(session: SessionMaker, eventbus: EventBus, task: ParseOut
                                 await upsert_entity(session, TonanoMint(
                                     msg_id=ctx.message.msg_id,
                                     created_lt=ctx.message.created_lt,
-                                    utime=ctx.source_tx.utime if ctx.source_tx else None,
+                                    utime=ctx.source_tx.utime if ctx.source_tx else ctx.destination_tx.utime if ctx.destination_tx else None,
                                     owner=ctx.message.source,
                                     tick=make_lower(obj.get('tick', None)),
                                     amount=int(obj.get('amt', '-1')),
