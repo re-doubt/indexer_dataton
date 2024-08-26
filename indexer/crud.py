@@ -110,6 +110,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
 
             for tx_raw, tx_details_raw in txs_raw:
                 tx = Transaction.raw_transaction_to_dict(tx_raw, tx_details_raw)
+                logger.warning(f"TRANSACTION: {tx_raw, tx_details_raw}")
                 if tx is None:
                     continue
                 tx['block_id'] = block_id
@@ -483,8 +484,19 @@ async def insert_account(account_raw, address):
                                                                          ))
                                             .on_conflict_do_nothing())
 
-        await conn.execute(accounts_t.update().where(accounts_t.c.address == s_state['address'])\
-                           .values(last_check_time=int(datetime.today().timestamp()), mc_block_id=None, mc_seqno=None))
+        await conn.execute(
+            accounts_t.update()
+            .where(accounts_t.c.address == s_state['address'])
+            .values(
+                last_check_time=int(datetime.today().timestamp()),
+                mc_block_id=None,
+                mc_seqno=None,
+                code_hash=s_state['code_hash'],
+                balance=s_state['balance'],
+                tx_utime=select(Transaction.utime).where(Transaction.hash == s_state['last_tx_hash']).as_scalar(),
+                tx_lt=s_state['last_tx_lt'],
+            )
+        )
 
 async def reset_account(session: Session, address: str):
     await session.execute(

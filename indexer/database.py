@@ -421,6 +421,10 @@ class KnownAccounts(Base):
     last_check_time: int = Column(BigInteger)
     mc_block_id: int = Column(BigInteger)
     mc_seqno: int = Column(BigInteger)
+    code_hash: str = Column(String)
+    balance: int = Column(BigInteger)
+    tx_utime: int = Column(BigInteger)
+    tx_lt: int = Column(BigInteger)
 
     __table_args__ = (Index('known_accounts_index_1', 'last_check_time'),)
 
