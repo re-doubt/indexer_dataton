@@ -222,11 +222,14 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
 
 
         if settings.indexer.discover_accounts_enabled and unique_addresses:
-            insert_res = await conn.execute(insert_pg(accounts_t)
-                   .values([KnownAccounts.generate(address=address, mc_block_id=mc_block_id, mc_seqno=mc_seqno) for address in unique_addresses])
-                   .on_conflict_do_nothing())
-            if insert_res.rowcount > 0:
-                logger.info(f"New addresses discovered: {insert_res.rowcount}/{len(unique_addresses)}")
+            inserted_count = 0
+            for chunk in chunks(list(unique_addresses), 1000):
+                insert_res = await conn.execute(insert_pg(accounts_t)
+                    .values([KnownAccounts.generate(address=address, mc_block_id=mc_block_id, mc_seqno=mc_seqno) for address in chunk])
+                    .on_conflict_do_nothing())
+                inserted_count += insert_res.rowcount
+            if inserted_count > 0:
+                logger.info(f"New addresses discovered: {inserted_count}/{len(unique_addresses)}")
 
 
 def get_transactions_by_masterchain_seqno(session, masterchain_seqno: int, include_msg_body: bool):
