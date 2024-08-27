@@ -422,7 +422,7 @@ class KnownAccounts(Base):
     mc_block_id: int = Column(BigInteger)
     mc_seqno: int = Column(BigInteger)
     code_hash: str = Column(String)
-    balance: int = Column(BigInteger)
+    block_id: int = Column(BigInteger)
     tx_utime: int = Column(BigInteger)
     tx_lt: int = Column(BigInteger)
 
