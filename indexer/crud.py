@@ -93,7 +93,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
         out_msgs_by_hash = defaultdict(list)
         msg_contents_by_hash = {}
         msg2utime = {}
-        unique_addresses = set()
+        unique_accounts = {}
 
         for block_raw, header_raw, txs_raw in zip(blocks_raw, headers_raw, transactions_raw):
             s_block = Block.raw_block_to_dict(block_raw)
@@ -116,7 +116,17 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 res = await conn.execute(transaction_t.insert(), [tx])
 
                 if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state", "cskip_no_gas"):
-                    unique_addresses.add(Address(tx['account']).to_string(True, True, True))
+                    address = Address(tx['account']).to_string(True, True, True)
+                    if address in unique_accounts:
+                        unique_accounts['address']['last_tx_lt'] = max(unique_accounts['address']['last_tx_lt'], tx['lt'])
+                    else:
+                        unique_accounts[address] = KnownAccounts.generate(
+                            address=address, 
+                            mc_block_id=mc_block_id, 
+                            mc_seqno=mc_seqno,
+                            last_tx_lt=tx['lt'],
+                            last_tx_utime=tx['utime'],
+                        )
 
                 if 'in_msg' in tx_details_raw:
                     in_msg_raw = tx_details_raw['in_msg']
@@ -221,15 +231,13 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                     logger.info(f"{inserted_count} outbox items added")
 
 
-        if settings.indexer.discover_accounts_enabled and unique_addresses:
+        if settings.indexer.discover_accounts_enabled and unique_accounts:
             inserted_count = 0
-            for chunk in chunks(list(unique_addresses), 1000):
-                insert_res = await conn.execute(insert_pg(accounts_t)
-                    .values([KnownAccounts.generate(address=address, mc_block_id=mc_block_id, mc_seqno=mc_seqno) for address in chunk])
-                    .on_conflict_do_nothing())
+            for chunk in chunks(list(unique_accounts.values()), 1000):
+                insert_res = await conn.execute(insert_pg(accounts_t).values(chunk).on_conflict_do_update())
                 inserted_count += insert_res.rowcount
             if inserted_count > 0:
-                logger.info(f"New addresses discovered: {inserted_count}/{len(unique_addresses)}")
+                logger.info(f"Unique accounts updated: {inserted_count}/{len(unique_accounts)}")
 
 
 def get_transactions_by_masterchain_seqno(session, masterchain_seqno: int, include_msg_body: bool):
@@ -483,26 +491,24 @@ async def insert_account(account_raw, address):
                                                                          ))
                                             .on_conflict_do_nothing())
 
-        tx = (await conn.execute(select(Transaction).where(Transaction.hash == s_state['last_tx_hash']))).first()
         account = (await conn.execute(select(KnownAccounts).where(KnownAccounts.address == address))).first()
         last_check_time = int(datetime.today().timestamp())
 
-        if account.mc_seqno is None:
+        if account.first_tx_utime is None:
             stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
                 last_check_time=last_check_time,
-                mc_block_id=None,
-                mc_seqno=None
+                first_tx_utime=account.last_tx_utime,
+                code_hash=s_state['code_hash'],
+                balance=s_state['balance'],
+                balance_tx_lt=account.last_tx_lt,
             )
 
         else:
             stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
                 last_check_time=last_check_time,
-                mc_block_id=None,
-                mc_seqno=None,
                 code_hash=s_state['code_hash'],
-                block_id=tx.block_id,
-                tx_utime=tx.utime,
-                tx_lt=s_state['last_tx_lt'],
+                balance=s_state['balance'],
+                balance_tx_lt=account.last_tx_lt,
             )
 
         await conn.execute(stmt)
