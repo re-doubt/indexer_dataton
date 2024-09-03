@@ -118,7 +118,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state", "cskip_no_gas"):
                     address = Address(tx['account']).to_string(True, True, True)
                     if address in unique_accounts:
-                        unique_accounts['address']['last_tx_lt'] = max(unique_accounts['address']['last_tx_lt'], tx['lt'])
+                        unique_accounts[address]['last_tx_lt'] = max(unique_accounts[address]['last_tx_lt'], tx['lt'])
                     else:
                         unique_accounts[address] = KnownAccounts.generate(
                             address=address, 
@@ -234,7 +234,9 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
         if settings.indexer.discover_accounts_enabled and unique_accounts:
             inserted_count = 0
             for chunk in chunks(list(unique_accounts.values()), 1000):
-                insert_res = await conn.execute(insert_pg(accounts_t).values(chunk).on_conflict_do_update())
+                stmt = insert_pg(accounts_t).values(chunk)
+                stmt = stmt.on_conflict_do_update(index_elements=['address'], set_=stmt.excluded)
+                insert_res = await conn.execute(stmt)
                 inserted_count += insert_res.rowcount
             if inserted_count > 0:
                 logger.info(f"Unique accounts updated: {inserted_count}/{len(unique_accounts)}")
@@ -458,6 +460,14 @@ async def get_known_accounts_long_since_check(session: Session, min_days: int, l
     query = await session.execute(select(KnownAccounts.address) \
                                   .filter(KnownAccounts.last_check_time != None) \
                                   .filter(KnownAccounts.last_check_time < int((datetime.today() - timedelta(days=min_days)).timestamp())) \
+                                  .order_by(KnownAccounts.last_check_time.asc()) \
+                                  .limit(limit))
+
+    return query.all()
+
+async def get_known_accounts_for_reindex(session: Session, limit: int):
+    query = await session.execute(select(KnownAccounts.address) \
+                                  .filter(KnownAccounts.balance_tx_lt != KnownAccounts.last_tx_lt) \
                                   .order_by(KnownAccounts.last_check_time.asc()) \
                                   .limit(limit))
 

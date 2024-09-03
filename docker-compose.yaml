@@ -153,6 +153,44 @@ services:
       <<: *common-depends-on
       accounts_indexer:
         condition: service_started
+  balance_indexer:
+    build:
+      context: .
+      dockerfile: deploy/indexer.Dockerfile
+    command: --concurrency ${TON_INDEXER_ACCOUNTS_WORKERS_COUNT:-2} -Q balance_queue
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LITESERVER_INDEX: ${LITESERVER_INDEX_ACCOUNTS:-0}
+      LITESERVER_CONFIG: ${LITESERVER_CONFIG:-/run/secrets/tonlib_config}
+      CDLL_PATH: ${CDLL_PATH:-./config/libtonlibjson.so.0.5}
+    secrets:
+      - postgres_password
+      - tonlib_config
+    depends_on: *common-depends-on
+  balance_scheduler:
+    build:
+      context: .
+      dockerfile: deploy/scheduler.Dockerfile
+    command: balance balance_queue create
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      WORKERS_COUNT: ${TON_INDEXER_ACCOUNTS_WORKERS_COUNT:-2}
+    secrets:
+      - postgres_password
+    depends_on:
+      <<: *common-depends-on
+      balance_indexer:
+        condition: service_started
   parser:
     build:
       context: .
