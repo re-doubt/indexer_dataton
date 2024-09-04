@@ -440,7 +440,16 @@ class KnownAccounts(Base):
         }
 
     @classmethod
-    def generate(cls, address, last_check_time=None, mc_block_id=None, mc_seqno=None, last_tx_lt=None, last_tx_utime=None):
+    def generate(
+        cls, 
+        address, 
+        last_check_time=None, 
+        mc_block_id=None, 
+        mc_seqno=None, 
+        last_tx_lt=None, 
+        last_tx_utime=None, 
+        first_tx_utime=None,
+    ):
         return {
             'address': address,
             'last_check_time': last_check_time,
@@ -448,6 +457,7 @@ class KnownAccounts(Base):
             'mc_seqno': mc_seqno,
             'last_tx_lt': last_tx_lt,
             'last_tx_utime': last_tx_utime,
+            'first_tx_utime': first_tx_utime,
         }
 
 

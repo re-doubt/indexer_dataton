@@ -2,7 +2,7 @@ import time
 from typing import Optional
 from collections import defaultdict
 
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, desc
 from sqlalchemy.orm import joinedload, Session, contains_eager
 from sqlalchemy.future import select
 from sqlalchemy.dialects.postgresql import insert as insert_pg
@@ -126,6 +126,7 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                             mc_seqno=mc_seqno,
                             last_tx_lt=tx['lt'],
                             last_tx_utime=tx['utime'],
+                            first_tx_utime=tx['utime'],
                         )
 
                 if 'in_msg' in tx_details_raw:
@@ -471,8 +472,8 @@ async def get_known_accounts_long_since_check(session: Session, min_days: int, l
 
 async def get_known_accounts_for_reindex(session: Session, limit: int):
     query = await session.execute(select(KnownAccounts.address) \
-                                  .filter(KnownAccounts.balance_tx_lt != KnownAccounts.last_tx_lt) \
-                                  .order_by(KnownAccounts.last_check_time.asc()) \
+                                  .filter(KnownAccounts.balance_tx_lt < KnownAccounts.last_tx_lt) \
+                                  .order_by(desc(KnownAccounts.last_check_time - KnownAccounts.balance_tx_lt)) \
                                   .limit(limit))
 
     return query.all()
@@ -505,26 +506,12 @@ async def insert_account(account_raw, address):
                                                                          ))
                                             .on_conflict_do_nothing())
 
-        account = (await conn.execute(select(KnownAccounts).where(KnownAccounts.address == address))).first()
-        last_check_time = int(datetime.today().timestamp())
-
-        if account.first_tx_utime is None:
-            stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
-                last_check_time=last_check_time,
-                first_tx_utime=account.last_tx_utime,
-                code_hash=s_state['code_hash'],
-                balance=s_state['balance'],
-                balance_tx_lt=account.last_tx_lt,
-            )
-
-        else:
-            stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
-                last_check_time=last_check_time,
-                code_hash=s_state['code_hash'],
-                balance=s_state['balance'],
-                balance_tx_lt=account.last_tx_lt,
-            )
-
+        stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
+            last_check_time=int(datetime.today().timestamp()),
+            code_hash=s_state['code_hash'],
+            balance=s_state['balance'],
+            balance_tx_lt=s_state['last_tx_lt'],
+        )
         await conn.execute(stmt)
 
 async def insert_account_balance(account_raw, address):
