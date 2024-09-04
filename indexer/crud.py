@@ -232,14 +232,18 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
 
 
         if settings.indexer.discover_accounts_enabled and unique_accounts:
-            inserted_count = 0
+            updating_fields = ["mc_block_id", "mc_seqno", "last_tx_lt", "last_tx_utime"]
+            upserted_count = 0
             for chunk in chunks(list(unique_accounts.values()), 1000):
                 stmt = insert_pg(accounts_t).values(chunk)
-                stmt = stmt.on_conflict_do_update(index_elements=['address'], set_=stmt.excluded)
-                insert_res = await conn.execute(stmt)
-                inserted_count += insert_res.rowcount
-            if inserted_count > 0:
-                logger.info(f"Unique accounts updated: {inserted_count}/{len(unique_accounts)}")
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['address'], 
+                    set_={column.name: column for column in stmt.excluded if column.name in updating_fields}
+                )
+                upsert_res = await conn.execute(stmt)
+                upserted_count += upsert_res.rowcount
+            if upserted_count > 0:
+                logger.info(f"Unique accounts upserted: {upserted_count}/{len(unique_accounts)}")
 
 
 def get_transactions_by_masterchain_seqno(session, masterchain_seqno: int, include_msg_body: bool):
