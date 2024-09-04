@@ -269,6 +269,24 @@ async def process_account_info(addresses):
             logger.error(f"NotImplementedError for {address}")
             continue
             
+async def process_balance_info(addresses):
+    for address in addresses:
+        try:
+            account_raw = await index_worker.get_account_info(address)
+        except BlockDeleted as e:
+            logger.error(f"Block already deleted for {address}, reseting mc_seqno")
+            async with engine.begin() as conn:
+                await reset_account(conn, address)
+            continue
+        except BaseException as e:
+            logger.error(f"Unable to process account {address}, error: {e}, type {type(e)}")
+            continue
+        try:
+            await insert_account_balance(account_raw, address)
+        except NotImplementedError: 
+            logger.error(f"NotImplementedError for {address}")
+            continue
+
     
 @app.task(bind=True, max_retries=None,  acks_late=True)
 def get_block(self, mc_seqno_list):
@@ -290,6 +308,12 @@ def get_block(self, mc_seqno_list):
 
 @app.task(bind=True, acks_late=True)
 def get_account(self, addresses):
+    loop.run_until_complete(process_account_info(addresses))
+    logger.info(f"Processing finished for {self.request.id}: {len(addresses)} processed")
+    return len(addresses)
+
+@app.task(bind=True, acks_late=True)
+def get_balance(self, addresses):
     loop.run_until_complete(process_account_info(addresses))
     logger.info(f"Processing finished for {self.request.id}: {len(addresses)} processed")
     return len(addresses)

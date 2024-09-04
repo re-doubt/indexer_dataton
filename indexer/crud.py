@@ -527,6 +527,25 @@ async def insert_account(account_raw, address):
 
         await conn.execute(stmt)
 
+async def insert_account_balance(account_raw, address):
+    meta = Base.metadata
+    accounts_t = meta.tables[KnownAccounts.__tablename__]
+
+    s_state = AccountState.raw_account_info_to_content_dict(account_raw, address)
+
+    async with engine.begin() as conn:
+        account = (await conn.execute(select(KnownAccounts).where(KnownAccounts.address == address))).first()
+        last_check_time = int(datetime.today().timestamp())
+
+        stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
+            last_check_time=last_check_time,
+            code_hash=s_state['code_hash'],
+            balance=s_state['balance'],
+            balance_tx_lt=account.last_tx_lt,
+        )
+
+        await conn.execute(stmt)
+
 async def reset_account(session: Session, address: str):
     await session.execute(
         update(KnownAccounts).where(KnownAccounts.address == address).values(last_check_time=None, mc_block_id=None, mc_seqno=None)

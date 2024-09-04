@@ -5,7 +5,7 @@ import time
 import sys
 import traceback
 from indexer.celery import app
-from indexer.tasks import get_block, get_last_mc_block, get_account
+from indexer.tasks import get_block, get_last_mc_block, get_account, get_balance
 from indexer.database import init_database, SessionMaker
 from indexer.crud import get_existing_seqnos_between_interval, get_known_accounts_not_indexed, get_known_accounts_long_since_check, get_known_accounts_for_reindex
 from pytonlib import TonlibError, LiteServerTimeout, BlockDeleted
@@ -370,6 +370,39 @@ class BalanceIndexer(AccountsIndexer):
                 return
             except BaseException as e:
                 logger.error("Task _push_to_queue raised exception: {exception}", exception=e)
+
+    async def _index_accounts(self):
+        while True:
+            try:
+                if not self.is_liteserver_up:
+                    await asyncio.sleep(1)
+                    continue
+
+                if len(self.running_tasks) > 4 * settings.indexer.workers_count:
+                    await asyncio.sleep(1)
+                    continue
+
+                chunk = []
+                while len(chunk) < settings.indexer.accounts_per_task:
+                    try:
+                        account = self.accounts_to_process_queue.popleft()
+                    except IndexError:
+                        break
+                    chunk.append(account[0])
+                    self.processing_now.add(account)
+
+                if len(chunk) == 0:
+                    await asyncio.sleep(1)
+                    continue
+
+                task = asyncify(get_balance, [chunk], serializer='pickle', queue=self.celery_queue)
+                self.running_tasks.append((self.loop.create_task(task), chunk))
+                logger.info(f"Running new task with {len(chunk)} accounts, total active tasks: {len(self.running_tasks)}")
+            except asyncio.CancelledError:
+                logger.warning("Task _index_accounts was cancelled")
+                return
+            except BaseException as e:
+                logger.error("Task _index_accounts raised exception: {exception}", exception=e)
 
 
 if __name__ == "__main__":
