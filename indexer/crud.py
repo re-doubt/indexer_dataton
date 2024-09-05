@@ -115,11 +115,11 @@ async def insert_by_seqno_core(session, blocks_raw, headers_raw, transactions_ra
                 tx['block_id'] = block_id
                 res = await conn.execute(transaction_t.insert(), [tx])
 
-                if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state", "cskip_no_gas"):
-                    address = Address(tx['account']).to_string(True, True, True)
-                    if address in unique_accounts:
-                        unique_accounts[address]['last_tx_lt'] = max(unique_accounts[address]['last_tx_lt'], tx['lt'])
-                    else:
+                address = Address(tx['account']).to_string(True, True, True)
+                if address in unique_accounts:
+                    unique_accounts[address]['last_tx_lt'] = max(unique_accounts[address]['last_tx_lt'], tx['lt'])
+                else:
+                    if tx['compute_skip_reason'] not in ("cskip_bad_state", "cskip_no_state", "cskip_no_gas"):
                         unique_accounts[address] = KnownAccounts.generate(
                             address=address, 
                             mc_block_id=mc_block_id, 
@@ -509,8 +509,8 @@ async def insert_account(account_raw, address):
         stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
             last_check_time=int(datetime.today().timestamp()),
             code_hash=s_state['code_hash'],
-            balance=s_state['balance'],
-            balance_tx_lt=s_state['last_tx_lt'],
+            balance=s_state['balance'] if s_state['code_hash'] else None,
+            balance_tx_lt=s_state['last_tx_lt'] if s_state['code_hash'] else None,
         )
         await conn.execute(stmt)
 
@@ -524,8 +524,8 @@ async def insert_account_balance(account_raw, address):
         stmt = accounts_t.update().where(accounts_t.c.address == s_state['address']).values(
             last_check_time=int(datetime.today().timestamp()),
             code_hash=s_state['code_hash'],
-            balance=s_state['balance'],
-            balance_tx_lt=s_state['last_tx_lt'],
+            balance=s_state['balance'] if s_state['code_hash'] else None,
+            balance_tx_lt=s_state['last_tx_lt'] if s_state['code_hash'] else None,
         )
         await conn.execute(stmt)
 
