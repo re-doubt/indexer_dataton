@@ -473,7 +473,7 @@ async def get_known_accounts_long_since_check(session: Session, min_days: int, l
 async def get_known_accounts_for_reindex(session: Session, limit: int):
     query = await session.execute(select(KnownAccounts.address) \
                                   .filter(KnownAccounts.balance_tx_lt < KnownAccounts.last_tx_lt) \
-                                  .order_by(desc(KnownAccounts.last_check_time - KnownAccounts.balance_tx_lt)) \
+                                  .order_by(desc(KnownAccounts.last_tx_lt - KnownAccounts.balance_tx_lt)) \
                                   .limit(limit))
 
     return query.all()
