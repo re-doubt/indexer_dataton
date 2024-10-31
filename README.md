@@ -1,3 +1,5 @@
+# The project is deprecated. Please use [TON-ETL](https://github.com/re-doubt/ton-etl) if you are looking for high-level decoding pipelines
+
 # TON Indexer
 
 TON Indexer stores blocks, transactions, messages in Postgres database and provides convenient API.
